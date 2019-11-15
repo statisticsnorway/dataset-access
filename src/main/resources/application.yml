@@ -1,0 +1,10 @@
+endpoints:
+  prometheus:
+    enabled: true
+    sensitive: false
+micronaut:
+  application:
+    name: dataset-access
+  metrics:
+    enabled: true
+    sensitive: false
