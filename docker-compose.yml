@@ -1,0 +1,18 @@
+version: '3.7'
+
+services:
+
+  postgres:
+    image: postgres:11-alpine
+    ports:
+      - 15432:5432
+    volumes:
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
+
+  datasetAccess:
+    build: .
+    image: dataset-access:dev
+    ports:
+      - 8989:8080
+    depends_on:
+      - postgres
