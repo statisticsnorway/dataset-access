@@ -8,11 +8,12 @@ micronaut:
   metrics:
     enabled: true
     sensitive: false
-datasources:
-  datasetUserAccess:
-    url: jdbc:postgresql://localhost:15432/rdc
-    username: rdc
-    password: rdc
-    driverClassName: org.postgresql.Driver
-    connectionTimeout: 2000 # Hikari, maximum number of milliseconds that a client will wait for a connection from the pool
-    queryTimeout: 2000ms
+postgres:
+  reactive:
+    client:
+      port: 15432
+      host: localhost
+      database: rdc
+      user: rdc
+      password: rdc
+      maxSize: 5

@@ -1,15 +1,14 @@
 package no.ssb.datasetaccess;
 
 
+import io.reactiverse.reactivex.pgclient.PgPool;
+import io.reactiverse.reactivex.pgclient.Tuple;
+import io.reactivex.Completable;
+import io.reactivex.Single;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.inject.Singleton;
-import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.Map;
 
 import static net.logstash.logback.marker.Markers.appendEntries;
@@ -21,137 +20,60 @@ public class AccessRepository {
 
     private static final String DOES_USER_HAVE_ACCESS = "" +
             "SELECT * FROM dataset_user_permission " +
-            "WHERE dataset_user_id = ? " +
-            "AND dataset_id = ?";
+            "WHERE dataset_user_id = $1 " +
+            "AND dataset_id = $2";
 
-    private static final String CREATE_USER = "INSERT INTO dataset_user (id) VALUES (?) ON CONFLICT DO NOTHING";
+    private static final String CREATE_USER = "INSERT INTO dataset_user (id) VALUES ($1) ON CONFLICT DO NOTHING";
 
-    private static final String CREATE_DATASET = "INSERT INTO dataset (id) VALUES (?) ON CONFLICT DO NOTHING";
+    private static final String CREATE_DATASET = "INSERT INTO dataset (id) VALUES ($1) ON CONFLICT DO NOTHING";
 
     private static final String CREATE_DATASET_USER_ACCESS = "" +
             "INSERT INTO dataset_user_permission (dataset_user_id, dataset_id) " +
-            "VALUES (?, ?) ON CONFLICT DO NOTHING";
+            "VALUES ($1, $2) ON CONFLICT DO NOTHING";
 
     private final Config config;
 
-    private final DataSource dataSource;
+    private final PgPool client;
 
-    public AccessRepository(Config config, DataSource dataSource) {
+    public AccessRepository(Config config, PgPool client) {
         this.config = config;
-        this.dataSource = dataSource;
+        this.client = client;
     }
 
-    public boolean doesUserHaveAccessToDataset(final User user, final Dataset dataset) throws AccessRepositoryException {
-
-        boolean hasAccess = false;
-
-        try (
-                Connection connection = dataSource.getConnection();
-                PreparedStatement preparedStatement = connection.prepareStatement(DOES_USER_HAVE_ACCESS)
-        ) {
-
-            preparedStatement.setString(1, user.getId());
-            preparedStatement.setString(2, dataset.getId());
-            preparedStatement.setQueryTimeout(this.config.getQueryTimeout().toSecondsPart());
-
-            try (ResultSet resultSet = preparedStatement.executeQuery()) {
-
-                while (resultSet.next()) {
-                    hasAccess = true; // The result set has at least one entry
-
-                    LOG.info(
-                            appendEntries(Map.of("dataset_id", dataset.getId(), "user_id", user.getId())),
-                            "User can access dataset"
-                    );
-                }
+    public Single<Boolean> doesUserHaveAccessToDataset(final User user, final Dataset dataset) throws AccessRepositoryException {
+        return client.rxPreparedQuery(DOES_USER_HAVE_ACCESS, Tuple.of(user.getId(), dataset.getId())).map(pgRowSet -> {
+            boolean hasAccess = pgRowSet.iterator().hasNext();
+            if (hasAccess) {
+                LOG.info(
+                        appendEntries(Map.of("dataset_id", dataset.getId(), "user_id", user.getId())),
+                        "User can access dataset"
+                );
             }
-
-        } catch (SQLException e) {
-            throw new AccessRepositoryException("Error when checking user access", e);
-        }
-
-        return hasAccess;
+            return hasAccess;
+        });
     }
 
-    private void addUserIfNotExists(final Connection connection, final User user) throws AccessRepositoryException {
-        try (final PreparedStatement preparedStatement = connection.prepareStatement(CREATE_USER)) {
-
-            preparedStatement.setString(1, user.getId());
-            preparedStatement.setQueryTimeout(this.config.getQueryTimeout().toSecondsPart());
-
-            final int rowsAffected = preparedStatement.executeUpdate();
-
+    private Completable addUserIfNotExists(final User user) throws AccessRepositoryException {
+        return client.rxPreparedQuery(CREATE_USER, Tuple.of(user.getId())).flatMapCompletable(pgRowSet -> {
+            int rowsAffected = 1; // TODO get from query
             if (rowsAffected == 0) {
                 LOG.info(appendEntries(Map.of("user_id", user.getId())), "User already exists");
             }
-
-        } catch (SQLException e) {
-            throw new AccessRepositoryException("Could not create new user", e);
-        }
+            return null; // signal insert complete
+        });
     }
 
-    public void addUserIfNotExists(final User user) throws AccessRepositoryException {
-
-        try (final Connection connection = dataSource.getConnection()) {
-
-            addUserIfNotExists(connection, user);
-
-        } catch (SQLException e) {
-            throw new AccessRepositoryException("Could not create new user", e);
-        }
+    private Completable addDatasetIfNotExists(final Dataset dataset) throws AccessRepositoryException {
+        return client.rxPreparedQuery(CREATE_DATASET, Tuple.of(dataset.getId())).flatMapCompletable(pgRowSet -> null);
+        // if (rowsAffected == 0) LOG.info(appendEntries(Map.of("dataset_id", dataset.getId())), "Dataset already exists");
+        // TODO query timeout
     }
 
-    private void addDatasetIfNotExists(final Connection connection, final Dataset dataset) throws AccessRepositoryException {
-        try (final PreparedStatement preparedStatement = connection.prepareStatement(CREATE_DATASET)) {
-
-            preparedStatement.setString(1, dataset.getId());
-            preparedStatement.setQueryTimeout(this.config.getQueryTimeout().toSecondsPart());
-
-            final int rowsAffected = preparedStatement.executeUpdate();
-
-            if (rowsAffected == 0) {
-                LOG.info(appendEntries(Map.of("dataset_id", dataset.getId())), "Dataset already exists");
-            }
-
-        } catch (SQLException e) {
-            throw new AccessRepositoryException("Could not create new dataset", e);
-        }
+    void addDatasetUserAccessIfNotExists(final User user, final Dataset dataset) throws AccessRepositoryException {
+        client.rxPreparedQuery(CREATE_DATASET_USER_ACCESS, Tuple.of(user.getId(), dataset.getId())).flatMapCompletable(prs -> null);
     }
 
-    public void addDatasetIfNotExists(final Dataset dataset) throws AccessRepositoryException {
-        try (final Connection connection = dataSource.getConnection()) {
-
-            addDatasetIfNotExists(connection, dataset);
-
-        } catch (SQLException e) {
-            throw new AccessRepositoryException("Could not create new dataset", e);
-        }
-    }
-
-    public void addDatasetUserAccessIfNotExists(final User user, final Dataset dataset) throws AccessRepositoryException {
-
-        try (
-                final Connection connection = dataSource.getConnection();
-                final PreparedStatement preparedStatement = connection.prepareStatement(CREATE_DATASET_USER_ACCESS)
-        ) {
-
-            addUserIfNotExists(connection, user);
-            addDatasetIfNotExists(connection, dataset);
-
-            preparedStatement.setString(1, user.getId());
-            preparedStatement.setString(2, dataset.getId());
-            preparedStatement.setQueryTimeout(this.config.getQueryTimeout().toSecondsPart());
-
-            final int rowsAffected = preparedStatement.executeUpdate();
-
-            LOG.info(appendEntries(Map.of("rows_affected", rowsAffected)), "Created access");
-
-        } catch (SQLException e) {
-            throw new AccessRepositoryException("Failed creating dataset access", e);
-        }
-    }
-
-    static class AccessRepositoryException extends Exception {
+    static class AccessRepositoryException extends RuntimeException {
         AccessRepositoryException(String message, Throwable cause) {
             super(message, cause);
         }

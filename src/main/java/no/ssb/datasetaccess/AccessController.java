@@ -6,6 +6,7 @@ import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Header;
 import io.micronaut.http.annotation.Post;
+import io.reactivex.Single;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,42 +24,41 @@ public class AccessController {
     private AccessRepository accessRepository;
 
     @Get
-    public HttpResponse<String> access(@Header("Authorization") String authorization) {
+    public Single<HttpResponse<String>> access(@Header("Authorization") Single<String> authorization) {
+        return authorization.flatMap(auth -> {
+            final User user = new User("xxx-yyy-zzz");
+            final Dataset dataset = new Dataset("1");
 
-        final User user = new User("xxx-yyy-zzz");
-        final Dataset dataset = new Dataset("1");
-
-        boolean userHasAccessToDataset = false;
-
-        try {
-            userHasAccessToDataset = accessRepository.doesUserHaveAccessToDataset(user, dataset);
-        } catch (AccessRepository.AccessRepositoryException e) {
-            LOG.warn("Got error when trying to determine if user has access to dataset", e);
-        }
-
-        if (userHasAccessToDataset) {
-            return HttpResponse.ok();
-        }
-        return HttpResponse.unauthorized();
+            return accessRepository.doesUserHaveAccessToDataset(user, dataset).map(userHasAccessToDataset -> {
+                if (userHasAccessToDataset) {
+                    return HttpResponse.ok();
+                }
+                return HttpResponse.unauthorized();
+            });
+        });
     }
 
     @Post
-    public HttpResponse<String> createAccess(@Body("user_id") String userId, @Body("dataset_id") String datasetId) {
+    public Single<HttpResponse<String>> createAccess(@Body("user_id") Single<String> singleUserId, @Body("dataset_id") Single<String> singleDatasetId) {
+        return singleUserId.zipWith(singleDatasetId, (uid, did) -> Map.of("user_id", uid, "dataset_id", did)).map(m -> {
+            String userId = m.get("user_id");
+            String datasetId = m.get("dataset_id");
 
-        LOG.info(appendEntries(Map.of("user", userId, "dataset", datasetId)), "Incoming request");
+            LOG.info(appendEntries(Map.of("user", userId, "dataset", datasetId)), "Incoming request");
 
-        final User user = new User(userId);
-        final Dataset dataset = new Dataset(datasetId);
+            final User user = new User(userId);
+            final Dataset dataset = new Dataset(datasetId);
 
-        try {
+            try {
 
-            accessRepository.addDatasetUserAccessIfNotExists(user, dataset);
+                accessRepository.addDatasetUserAccessIfNotExists(user, dataset);
 
-        } catch (AccessRepository.AccessRepositoryException e) {
-            LOG.warn(appendEntries(Map.of("user", userId, "dataset", datasetId)), "Could not give user access to dataset", e);
-            return HttpResponse.serverError();
-        }
+            } catch (AccessRepository.AccessRepositoryException e) {
+                LOG.warn(appendEntries(Map.of("user", userId, "dataset", datasetId)), "Could not give user access to dataset", e);
+                return HttpResponse.serverError();
+            }
 
-        return HttpResponse.ok();
+            return HttpResponse.ok();
+        });
     }
 }
