@@ -40,17 +40,27 @@ public class AccessRepository {
         this.client = client;
     }
 
-    public Single<Boolean> doesUserHaveAccessToDataset(final User user, final Dataset dataset) throws AccessRepositoryException {
-        return client.rxPreparedQuery(DOES_USER_HAVE_ACCESS, Tuple.of(user.getId(), dataset.getId())).map(pgRowSet -> {
+    static class UserAndDataset {
+        final User user;
+        final Dataset dataset;
+
+        UserAndDataset(User user, Dataset dataset) {
+            this.user = user;
+            this.dataset = dataset;
+        }
+    }
+
+    Single<Boolean> doesUserHaveAccessToDataset(Single<UserAndDataset> _uad) throws AccessRepositoryException {
+        return _uad.flatMap(uad -> client.rxPreparedQuery(DOES_USER_HAVE_ACCESS, Tuple.of(uad.user.getId(), uad.dataset.getId())).map(pgRowSet -> {
             boolean hasAccess = pgRowSet.iterator().hasNext();
             if (hasAccess) {
                 LOG.info(
-                        appendEntries(Map.of("dataset_id", dataset.getId(), "user_id", user.getId())),
+                        appendEntries(Map.of("dataset_id", uad.dataset.getId(), "user_id", uad.user.getId())),
                         "User can access dataset"
                 );
             }
             return hasAccess;
-        });
+        }));
     }
 
     private Completable addUserIfNotExists(final User user) throws AccessRepositoryException {
@@ -69,8 +79,8 @@ public class AccessRepository {
         // TODO query timeout
     }
 
-    void addDatasetUserAccessIfNotExists(final User user, final Dataset dataset) throws AccessRepositoryException {
-        client.rxPreparedQuery(CREATE_DATASET_USER_ACCESS, Tuple.of(user.getId(), dataset.getId())).flatMapCompletable(prs -> null);
+    Completable addDatasetUserAccessIfNotExists(Single<UserAndDataset> _uad) throws AccessRepositoryException {
+        return _uad.flatMap(uad -> client.rxPreparedQuery(CREATE_DATASET_USER_ACCESS, Tuple.of(uad.user.getId(), uad.dataset.getId()))).ignoreElement();
     }
 
     static class AccessRepositoryException extends RuntimeException {
