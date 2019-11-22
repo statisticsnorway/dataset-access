@@ -1,0 +1,8 @@
+endpoints:
+  prometheus:
+    enabled: false
+  metrics:
+    enabled: false
+tracing:
+  jaeger:
+    enabled: false
