@@ -9,5 +9,7 @@ module no.ssb.datasetaccess {
     requires reactive.pg.client;
     requires java.sql; // required by micronaut-metrics
 
+    opens no.ssb.datasetaccess to io.micronaut.inject;
+
     exports no.ssb.datasetaccess;
 }
