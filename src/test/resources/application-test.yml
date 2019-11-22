@@ -1,6 +1,7 @@
 endpoints:
   prometheus:
     enabled: false
+micronaut:
   metrics:
     enabled: false
 tracing:
