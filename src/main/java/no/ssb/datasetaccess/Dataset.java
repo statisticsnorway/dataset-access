@@ -15,4 +15,9 @@ public class Dataset {
     public String getId() {
         return this.id;
     }
+
+    @Override
+    public String toString() {
+        return id;
+    }
 }

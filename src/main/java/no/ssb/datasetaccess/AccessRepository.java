@@ -1,7 +1,10 @@
 package no.ssb.datasetaccess;
 
 
+import io.micronaut.tracing.annotation.NewSpan;
+import io.micronaut.tracing.annotation.SpanTag;
 import io.reactiverse.reactivex.pgclient.PgPool;
+import io.reactiverse.reactivex.pgclient.PgRowSet;
 import io.reactiverse.reactivex.pgclient.Tuple;
 import io.reactivex.Completable;
 import io.reactivex.Single;
@@ -48,19 +51,31 @@ public class AccessRepository {
             this.user = user;
             this.dataset = dataset;
         }
+
+        @Override
+        public String toString() {
+            return "UserAndDataset{" +
+                    "user=" + user +
+                    ", dataset=" + dataset +
+                    '}';
+        }
     }
 
+    @NewSpan
     Single<Boolean> doesUserHaveAccessToDataset(Single<UserAndDataset> _uad) throws AccessRepositoryException {
-        return _uad.flatMap(uad -> client.rxPreparedQuery(DOES_USER_HAVE_ACCESS, Tuple.of(uad.user.getId(), uad.dataset.getId())).map(pgRowSet -> {
-            boolean hasAccess = pgRowSet.iterator().hasNext();
-            if (hasAccess) {
-                LOG.info(
-                        appendEntries(Map.of("dataset_id", uad.dataset.getId(), "user_id", uad.user.getId())),
-                        "User can access dataset"
-                );
-            }
-            return hasAccess;
-        }));
+        return _uad.flatMap(uad -> client.rxPreparedQuery(DOES_USER_HAVE_ACCESS, Tuple.of(uad.user.getId(), uad.dataset.getId())).map(pgRowSet -> mapUserAccess(uad, pgRowSet)));
+    }
+
+    @NewSpan
+    Boolean mapUserAccess(@SpanTag UserAndDataset uad, PgRowSet pgRowSet) {
+        boolean hasAccess = pgRowSet.iterator().hasNext();
+        if (hasAccess) {
+            LOG.info(
+                    appendEntries(Map.of("dataset_id", uad.dataset.getId(), "user_id", uad.user.getId())),
+                    "User can access dataset"
+            );
+        }
+        return hasAccess;
     }
 
     private Completable addUserIfNotExists(final User user) throws AccessRepositoryException {
