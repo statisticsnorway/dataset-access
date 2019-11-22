@@ -2,6 +2,9 @@ endpoints:
   prometheus:
     enabled: true
     sensitive: false
+  info:
+    enabled: true
+    sensitive: false
 micronaut:
   application:
     name: dataset-access
