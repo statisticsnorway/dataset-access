@@ -9,6 +9,7 @@ module no.ssb.datasetaccess {
     requires logstash.logback.encoder;
     requires reactive.pg.client;
     requires java.sql; // required by micronaut-metrics
+    requires jdk.unsupported; // required by netty to allow reliable low-level API access to direct-buffers
 
     opens no.ssb.datasetaccess;
 
