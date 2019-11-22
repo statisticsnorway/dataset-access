@@ -35,8 +35,25 @@
     <dependencies>
         <dependency>
             <groupId>io.micronaut</groupId>
+            <artifactId>micronaut-core</artifactId>
+            <scope>compile</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.google.code.findbugs</groupId>
+                    <artifactId>jsr305</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>io.micronaut</groupId>
             <artifactId>micronaut-inject</artifactId>
             <scope>compile</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>javax.annotation</groupId>
+                    <artifactId>javax.annotation-api</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>io.micronaut</groupId>
@@ -46,11 +63,6 @@
         <dependency>
             <groupId>io.micronaut</groupId>
             <artifactId>micronaut-runtime</artifactId>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>javax.annotation</groupId>
-            <artifactId>javax.annotation-api</artifactId>
             <scope>compile</scope>
         </dependency>
         <dependency>
@@ -80,6 +92,12 @@
             <groupId>io.micronaut.configuration</groupId>
             <artifactId>micronaut-postgres-reactive</artifactId>
             <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>no.ssb.jpms</groupId>
+            <artifactId>jsr305-and-javax.annotation-api</artifactId>
+            <version>1.0</version>
+            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>ch.qos.logback</groupId>
