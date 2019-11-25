@@ -94,8 +94,8 @@ public class AccessRepository {
         // TODO query timeout
     }
 
-    Completable addDatasetUserAccessIfNotExists(Single<UserAndDataset> _uad) throws AccessRepositoryException {
-        return _uad.flatMap(uad -> client.rxPreparedQuery(CREATE_DATASET_USER_ACCESS, Tuple.of(uad.user.getId(), uad.dataset.getId()))).ignoreElement();
+    Completable addDatasetUserAccessIfNotExists(UserAndDataset uad) throws AccessRepositoryException {
+        return client.rxPreparedQuery(CREATE_DATASET_USER_ACCESS, Tuple.of(uad.user.getId(), uad.dataset.getId())).ignoreElement();
     }
 
     static class AccessRepositoryException extends RuntimeException {
