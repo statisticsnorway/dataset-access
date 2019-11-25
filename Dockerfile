@@ -1,11 +1,11 @@
 FROM alpine:latest as build
 
-RUN apk --no-cache add curl tar gzip
+RUN apk --no-cache add curl tar gzip binutils
 
 #
 # Install JDK
 #
-RUN curl https://cdn.azul.com/zulu/bin/zulu11.35.15-ca-jdk11.0.5-linux_musl_x64.tar.gz -o /jdk.tar.gz
+RUN curl https://cdn.azul.com/zulu/bin/zulu13.28.11-ca-jdk13.0.1-linux_musl_x64.tar.gz -o /jdk.tar.gz
 RUN mkdir -p /jdk
 RUN tar xzf /jdk.tar.gz --strip-components=1 -C /jdk
 ENV PATH=/jdk/bin:$PATH
