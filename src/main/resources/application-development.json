@@ -1,0 +1,14 @@
+{
+  "postgres": {
+    "reactive": {
+      "client": {
+        "port": 15432,
+        "host": "localhost",
+        "database": "rdc",
+        "user": "rdc",
+        "password": "rdc",
+        "maxSize": 5
+      }
+    }
+  }
+}
