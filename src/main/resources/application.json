@@ -1,0 +1,49 @@
+{
+  "endpoints": {
+    "info": {
+      "enabled": true,
+      "sensitive": false
+    },
+    "prometheus": {
+      "enabled": true,
+      "sensitive": false
+    }
+  },
+  "micronaut": {
+    "application": {
+      "name": "dataset-access"
+    },
+    "metrics": {
+      "enabled": true,
+      "sensitive": false
+    }
+  },
+  "postgres": {
+    "reactive": {
+      "client": {
+        "database": "rdc",
+        "host": "postgres",
+        "maxSize": 5,
+        "password": "rdc",
+        "port": 5432,
+        "user": "rdc"
+      }
+    }
+  },
+  "tracing": {
+    "jaeger": {
+      "enabled": true,
+      "reporter": {
+        "flushInterval": 2000,
+        "maxQueueSize": 200
+      },
+      "sampler": {
+        "probability": 1
+      },
+      "sender": {
+        "agentHost": "localhost",
+        "agentPort": 5775
+      }
+    }
+  }
+}

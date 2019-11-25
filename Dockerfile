@@ -15,7 +15,7 @@ ENV JAVA_HOME=/jdk
 # Build stripped JVM
 #
 RUN ["jlink", "--strip-debug", "--no-header-files", "--no-man-pages", "--compress=2", "--module-path", "/jdk/jmods", "--output", "/linked",\
- "--add-modules", "java.base,jdk.management.agent,jdk.unsupported,java.sql,jdk.zipfs,java.desktop,jdk.naming.dns"]
+ "--add-modules", "java.base,jdk.management.agent,jdk.unsupported,java.sql,jdk.zipfs,jdk.naming.dns"]
 
 #
 # Build Application image

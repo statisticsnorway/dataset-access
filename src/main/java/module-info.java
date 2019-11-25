@@ -17,7 +17,7 @@ module no.ssb.datasetaccess {
      * missing from jvm.
      */
     requires java.sql; // required by micronaut-metrics
-    requires java.desktop; // required by micronaut inject for bean introspection
+    //requires java.desktop; // required by snakeyaml for bean introspection
     requires jdk.zipfs; // required by micronaut for classpath scanning
     requires jdk.management.agent; // required to run application with the com.sun.management.jmxremote property
     requires jdk.unsupported; // required by netty to allow reliable low-level API access to direct-buffers
