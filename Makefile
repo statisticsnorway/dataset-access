@@ -7,7 +7,7 @@ start: | build ## Run the application inside a docker container
 
 .PHONY: build
 build: ## Build the application with maven
-	./mvnw -B clean install -DskipTests
+	./mvnw -B clean install dependency:copy-dependencies -DincludeScope=runtime -DskipTests
 
 .PHONY: stop
 stop: ## Stop the application

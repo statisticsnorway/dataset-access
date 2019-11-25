@@ -1,4 +1,10 @@
-FROM adoptopenjdk/openjdk11-openj9:jdk-11.0.1.13-alpine-slim
-COPY target/dataset-access-*.jar dataset-access.jar
+FROM openjdk:11.0.5-slim
+
+COPY target/dependency /app/lib/
+COPY target/dataset-access-*.jar /app/lib/
+
+WORKDIR /app
+
 EXPOSE 8080
-CMD java -Dcom.sun.management.jmxremote -noverify ${JAVA_OPTS} -jar dataset-access.jar
+
+CMD ["java", "-Dcom.sun.management.jmxremote", "-p", "/app/lib", "-m", "no.ssb.datasetaccess/no.ssb.datasetaccess.Application"]

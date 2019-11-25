@@ -6,7 +6,7 @@ module no.ssb.datasetaccess {
     requires io.micronaut.tracing;
     requires io.micronaut.core;
     requires javax.inject;
-    requires slf4j.api;
+    requires org.slf4j;
     requires logstash.logback.encoder;
     requires reactive.pg.client;
     requires java.sql; // required by micronaut-metrics
