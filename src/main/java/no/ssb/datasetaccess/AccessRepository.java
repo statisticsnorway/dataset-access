@@ -43,35 +43,18 @@ public class AccessRepository {
         this.client = client;
     }
 
-    static class UserAndDataset {
-        final User user;
-        final Dataset dataset;
-
-        UserAndDataset(User user, Dataset dataset) {
-            this.user = user;
-            this.dataset = dataset;
-        }
-
-        @Override
-        public String toString() {
-            return "UserAndDataset{" +
-                    "user=" + user +
-                    ", dataset=" + dataset +
-                    '}';
-        }
+    @NewSpan
+    Single<Boolean> doesUserHaveAccessToDataset(User user, Dataset dataset) throws AccessRepositoryException {
+        return client.rxPreparedQuery(DOES_USER_HAVE_ACCESS, Tuple.of(user.getId(), dataset.getId()))
+                .map(pgRowSet -> mapUserAccess(user, dataset, pgRowSet));
     }
 
     @NewSpan
-    Single<Boolean> doesUserHaveAccessToDataset(Single<UserAndDataset> _uad) throws AccessRepositoryException {
-        return _uad.flatMap(uad -> client.rxPreparedQuery(DOES_USER_HAVE_ACCESS, Tuple.of(uad.user.getId(), uad.dataset.getId())).map(pgRowSet -> mapUserAccess(uad, pgRowSet)));
-    }
-
-    @NewSpan
-    Boolean mapUserAccess(@SpanTag UserAndDataset uad, PgRowSet pgRowSet) {
+    private Boolean mapUserAccess(@SpanTag User user, @SpanTag Dataset dataset, PgRowSet pgRowSet) {
         boolean hasAccess = pgRowSet.iterator().hasNext();
         if (hasAccess) {
             LOG.info(
-                    appendEntries(Map.of("dataset_id", uad.dataset.getId(), "user_id", uad.user.getId())),
+                    appendEntries(Map.of("dataset_id", dataset.getId(), "user_id", user.getId())),
                     "User can access dataset"
             );
         }
@@ -94,8 +77,8 @@ public class AccessRepository {
         // TODO query timeout
     }
 
-    Completable addDatasetUserAccessIfNotExists(UserAndDataset uad) throws AccessRepositoryException {
-        return client.rxPreparedQuery(CREATE_DATASET_USER_ACCESS, Tuple.of(uad.user.getId(), uad.dataset.getId())).ignoreElement();
+    Completable addDatasetUserAccessIfNotExists(User user, Dataset dataset) throws AccessRepositoryException {
+        return client.rxPreparedQuery(CREATE_DATASET_USER_ACCESS, Tuple.of(user.getId(), dataset.getId())).ignoreElement();
     }
 
     static class AccessRepositoryException extends RuntimeException {

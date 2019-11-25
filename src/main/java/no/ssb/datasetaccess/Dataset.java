@@ -18,6 +18,8 @@ public class Dataset {
 
     @Override
     public String toString() {
-        return id;
+        return "Dataset{" +
+                "id='" + id + '\'' +
+                '}';
     }
 }

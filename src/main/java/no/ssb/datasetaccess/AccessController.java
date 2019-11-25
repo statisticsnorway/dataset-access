@@ -10,7 +10,6 @@ import io.micronaut.http.annotation.Header;
 import io.micronaut.http.annotation.PathVariable;
 import io.micronaut.http.annotation.Post;
 import io.reactivex.Single;
-import no.ssb.datasetaccess.AccessRepository.UserAndDataset;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,11 +24,18 @@ public class AccessController {
     private AccessRepository accessRepository;
 
     @Get("/{datasetId}")
-    public Single<HttpResponse<String>> getAccess(@Header("Authorization") Single<String> authorization, @PathVariable Single<String> datasetId) {
-        final Single<HttpResponse<String>> response = accessRepository.doesUserHaveAccessToDataset(
-                authorization
-                        .map(Token::create)
-                        .zipWith(datasetId, (t, d) -> new UserAndDataset(new User(t.getUserId()), new Dataset(d))))
+    public Single<HttpResponse<String>> getAccess(@Header("Authorization") String authorization, @PathVariable String datasetId) {
+
+        final Token token;
+        try {
+            token = Token.create(authorization);
+        } catch (Token.TokenParseException e) {
+            LOG.warn("Could not parse request token", e);
+            return Single.just(HttpResponse.badRequest(e.getMessage()));
+        }
+
+        final Single<HttpResponse<String>> response = accessRepository
+                .doesUserHaveAccessToDataset(new User(token.getUserId()), new Dataset(datasetId))
                 .map(
                         userHasAccessToDataset -> {
                             if (userHasAccessToDataset) {
@@ -39,21 +45,17 @@ public class AccessController {
                         }
                 );
 
-        return response.onErrorReturn(throwable -> {
-            if (throwable instanceof Token.TokenParseException) {
-                return HttpResponse.badRequest(throwable.getMessage());
-            } else {
-                LOG.error("Got error while serving access request", throwable);
-                return HttpResponse.serverError();
-            }
+        return response.onErrorReturn(t -> {
+            LOG.error("Got error while serving access request", t);
+            return HttpResponse.serverError();
         });
     }
 
     @Post
-    public Single<HttpResponse<String>> grantAccess(@Body("user_id") String singleUserId, @Body("dataset_id") String singleDatasetId) {
+    public Single<HttpResponse<String>> grantAccess(@Body("user_id") String userId, @Body("dataset_id") String datasetId) {
 
         Single<HttpResponse<String>> response = accessRepository
-                .addDatasetUserAccessIfNotExists(new UserAndDataset(new User(singleUserId), new Dataset(singleDatasetId)))
+                .addDatasetUserAccessIfNotExists(new User(userId), new Dataset(datasetId))
                 .toSingle(HttpResponse::ok);
 
         return response.onErrorReturn(t -> {
