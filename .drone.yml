@@ -52,6 +52,22 @@ steps:
     depends_on:
       - test
 
+  - name: publish-docker
+    image: plugins/gcr
+    settings:
+      repo: prod-bip/dataset-access
+      registry: eu.gcr.io
+      tags: "${DRONE_BRANCH}-${DRONE_COMMIT_SHA:0:8}"
+      json_key:
+        from_secret: gcr_credentials
+    when:
+      branch:
+        - master
+      event:
+        - push
+    depends_on:
+      - sonarqube
+
   - name: slack
     image: plugins/slack
     settings:
@@ -90,3 +106,10 @@ name: sonar_token
 get:
   path: drone-sonarqube-configuration
   name: token
+
+---
+kind: secret
+name: gcr_credentials
+get:
+  path: drone-gcr-credentials
+  name: gcr-credentials
