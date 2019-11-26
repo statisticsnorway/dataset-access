@@ -9,7 +9,7 @@ import io.micronaut.http.client.RxHttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.runtime.server.EmbeddedServer;
 import io.reactivex.Flowable;
-import org.junit.Ignore;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.PostgreSQLContainer;
 
@@ -19,7 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
 //TODO: Don't attempt to spin up docker containers when running in drone
-@Ignore
+@Disabled
 class AccessControllerTest {
 
     /*
