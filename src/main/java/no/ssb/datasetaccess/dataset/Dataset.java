@@ -44,4 +44,12 @@ public class Dataset {
     public int hashCode() {
         return Objects.hash(state, valuation);
     }
+
+    @Override
+    public String toString() {
+        return "Dataset{" +
+                "state=" + state +
+                ", valuation=" + valuation +
+                '}';
+    }
 }
