@@ -11,6 +11,7 @@ module no.ssb.datasetaccess {
     requires reactive.pg.client;
     requires com.fasterxml.jackson.databind;
     requires com.fasterxml.jackson.annotation;
+    requires vertx.core;
 
     /*
      * Not so well documented requirements are declared here to force fail-fast with proper error message if

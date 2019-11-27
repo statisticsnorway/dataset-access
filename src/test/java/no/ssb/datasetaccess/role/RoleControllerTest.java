@@ -23,7 +23,7 @@ class RoleControllerTest {
 
     @Test
     void thatGetRoleWorks() {
-        HttpResponse<Role> response = httpClient.exchange(HttpRequest.GET("/role/reader"), Role.class).blockingFirst();
+        HttpResponse<Role> response = httpClient.exchange(HttpRequest.GET("/role/writer"), Role.class).blockingFirst();
         Role role = response.getBody().orElseThrow();
         System.out.printf("%s%n", role);
         assertThat((CharSequence) response.getStatus()).isEqualTo(HttpStatus.OK);

@@ -9,20 +9,23 @@ import io.micronaut.http.annotation.PathVariable;
 import io.micronaut.http.annotation.Post;
 import io.reactivex.Single;
 
+import javax.inject.Inject;
 import java.net.URI;
-import java.util.Set;
 
 @Controller("/role")
 public class RoleController {
 
+    @Inject
+    RoleRepository repository;
+
     @Post("/{roleId}")
     public Single<HttpResponse<String>> createRole(@PathVariable String roleId, @Body Role role) {
-        return Single.just(HttpResponse.created(URI.create("/role/" + roleId)));
+        return repository.createRole(role).toSingleDefault(HttpResponse.created(URI.create("/role/" + roleId)));
     }
 
     @Get("/{roleId}")
     public Single<HttpResponse<Role>> getRole(@PathVariable String roleId) {
-        return Single.just(HttpResponse.ok(new Role(roleId, Set.of(Privilege.READ))));
+        return repository.getRole(roleId).map(role -> HttpResponse.ok(role));
     }
 
     @Delete("/{roleId}")
