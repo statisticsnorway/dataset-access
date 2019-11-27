@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 
-@Controller("/access")
+@Controller("/delete-me")
 public class AccessController {
 
     private static final Logger LOG = LoggerFactory.getLogger(AccessController.class);
