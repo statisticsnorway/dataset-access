@@ -22,11 +22,11 @@ public class RoleController {
 
     @Get("/{roleId}")
     public Single<HttpResponse<Role>> getRole(@PathVariable String roleId) {
-        return Single.just(HttpResponse.ok(new Role("reader", Set.of(Privilege.READ))));
+        return Single.just(HttpResponse.ok(new Role(roleId, Set.of(Privilege.READ))));
     }
 
     @Delete("/{roleId}")
-    public Single<HttpResponse<Role>> deleteRole(@PathVariable String roleId) {
+    public Single<HttpResponse<String>> deleteRole(@PathVariable String roleId) {
         return Single.just(HttpResponse.ok());
     }
 }
