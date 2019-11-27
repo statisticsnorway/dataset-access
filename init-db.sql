@@ -1,3 +1,5 @@
+-- noinspection SqlNoDataSourceInspectionForFile
+
 -- Create user and database
 CREATE USER rdc WITH PASSWORD 'rdc';
 CREATE DATABASE rdc;
@@ -7,38 +9,23 @@ GRANT ALL PRIVILEGES ON DATABASE rdc TO rdc;
 -- Connect to database 'rdc' with user 'rdc'
 \connect rdc rdc
 
-
 -- Create dataset table
-CREATE TABLE public.dataset
+CREATE TABLE dataset
 (
-    id varchar(100) PRIMARY KEY
+    datasetId varchar(100) PRIMARY KEY,
+    document  jsonb
 );
 
-ALTER TABLE dataset OWNER TO rdc;
+-- Create role table
+CREATE TABLE role
+(
+    roleId   varchar(100) PRIMARY KEY,
+    document jsonb
+);
 
 -- Create user table
-CREATE TABLE dataset_user
+CREATE TABLE user_permission
 (
-    id varchar(100) PRIMARY KEY
+    userId   varchar(100) PRIMARY KEY,
+    document jsonb
 );
-
-ALTER TABLE dataset_user OWNER TO rdc;
-
-
--- Create permission table
-CREATE TABLE dataset_user_permission
-(
-    dataset_id varchar(100) NOT NULL,
-    dataset_user_id varchar(100) NOT NULL,
-    PRIMARY KEY (dataset_id, dataset_user_id)
-);
-
-ALTER TABLE dataset_user_permission OWNER TO rdc;
-
-
--- Insert some test data
-INSERT INTO dataset VALUES ('DATASET_1');
-
-INSERT INTO dataset_user VALUES ('USER_1');
-
-INSERT INTO dataset_user_permission (dataset_id, dataset_user_id) VALUES ('DATASET_1', 'USER_1') ON CONFLICT DO NOTHING;
