@@ -74,4 +74,8 @@ public class RoleRepository {
             return CompletableObserver::onComplete;
         });
     }
+
+    Completable deleteAllRoles() {
+        return client.rxQuery("DELETE FROM role").ignoreElement();
+    }
 }
