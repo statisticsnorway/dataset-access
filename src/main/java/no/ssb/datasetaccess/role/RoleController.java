@@ -30,6 +30,6 @@ public class RoleController {
 
     @Delete("/{roleId}")
     public Single<HttpResponse<String>> deleteRole(@PathVariable String roleId) {
-        return Single.just(HttpResponse.ok());
+        return repository.deleteRole(roleId).toSingleDefault(HttpResponse.ok());
     }
 }

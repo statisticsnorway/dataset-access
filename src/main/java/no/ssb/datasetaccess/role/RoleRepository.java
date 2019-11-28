@@ -8,6 +8,7 @@ import io.reactiverse.reactivex.pgclient.Row;
 import io.reactiverse.reactivex.pgclient.Tuple;
 import io.reactiverse.reactivex.pgclient.data.Json;
 import io.reactivex.Completable;
+import io.reactivex.CompletableObserver;
 import io.reactivex.Single;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
@@ -18,6 +19,8 @@ import javax.inject.Singleton;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import static net.logstash.logback.marker.Markers.appendEntries;
 
 @Singleton
 public class RoleRepository {
@@ -60,5 +63,14 @@ public class RoleRepository {
         JsonObject jsonObject = new JsonObject(Map.of("roleId", role.name, "privileges", privilegesArray));
         final Tuple arguments = Tuple.tuple().addString(role.name).addJson(Json.create(jsonObject));
         return client.rxPreparedQuery(INSERT_ROLE, arguments).ignoreElement();
+    }
+
+    Completable deleteRole(String roleId) {
+        return client.rxPreparedQuery(DELETE_ROLE, Tuple.of(roleId)).flatMapCompletable(rows -> {
+            if (rows.rowCount() > 0) {
+                LOG.info(appendEntries(Map.of("roleId", roleId)), "Deleted role");
+            }
+            return CompletableObserver::onComplete;
+        });
     }
 }
