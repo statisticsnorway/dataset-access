@@ -9,7 +9,7 @@ import io.reactiverse.reactivex.pgclient.Tuple;
 import io.reactiverse.reactivex.pgclient.data.Json;
 import io.reactivex.Completable;
 import io.reactivex.CompletableObserver;
-import io.reactivex.Single;
+import io.reactivex.Maybe;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
@@ -39,15 +39,15 @@ public class RoleRepository {
         this.client = client;
     }
 
-    Single<Role> getRole(String roleId) {
+    Maybe<Role> getRole(String roleId) {
         return client.rxPreparedQuery(SELECT_ROLE, Tuple.of(roleId))
-                .map(pgRowSet -> toRole(pgRowSet));
+                .flatMapMaybe(pgRowSet -> toRole(pgRowSet));
     }
 
-    private Role toRole(PgRowSet pgRowSet) {
+    private Maybe<Role> toRole(PgRowSet pgRowSet) {
         PgIterator iterator = pgRowSet.iterator();
         if (!iterator.hasNext()) {
-            return null;
+            return Maybe.empty();
         }
         Row row = iterator.next();
         String roleId = row.getString(0);
@@ -55,7 +55,7 @@ public class RoleRepository {
         JsonObject jsonObject = (JsonObject) document.value();
         JsonArray privileges = jsonObject.getJsonArray("privileges");
         Set<Privilege> privilegesSet = privileges.stream().map(str -> Privilege.valueOf((String) str)).collect(Collectors.toSet());
-        return new Role(roleId, privilegesSet);
+        return Maybe.just(new Role(roleId, privilegesSet));
     }
 
     Completable createRole(Role role) {

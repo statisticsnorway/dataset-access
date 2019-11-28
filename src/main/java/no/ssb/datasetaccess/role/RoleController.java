@@ -7,6 +7,7 @@ import io.micronaut.http.annotation.Delete;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.PathVariable;
 import io.micronaut.http.annotation.Put;
+import io.reactivex.Maybe;
 import io.reactivex.Single;
 
 import javax.inject.Inject;
@@ -24,7 +25,7 @@ public class RoleController {
     }
 
     @Get("/{roleId}")
-    public Single<HttpResponse<Role>> getRole(@PathVariable String roleId) {
+    public Maybe<HttpResponse<Role>> getRole(@PathVariable String roleId) {
         return repository.getRole(roleId).map(role -> HttpResponse.ok(role));
     }
 
