@@ -6,7 +6,7 @@ import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Delete;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.PathVariable;
-import io.micronaut.http.annotation.Post;
+import io.micronaut.http.annotation.Put;
 import io.reactivex.Single;
 
 import javax.inject.Inject;
@@ -18,7 +18,7 @@ public class RoleController {
     @Inject
     RoleRepository repository;
 
-    @Post("/{roleId}")
+    @Put("/{roleId}")
     public Single<HttpResponse<String>> createRole(@PathVariable String roleId, @Body Role role) {
         return repository.createRole(role).toSingleDefault(HttpResponse.created(URI.create("/role/" + roleId)));
     }

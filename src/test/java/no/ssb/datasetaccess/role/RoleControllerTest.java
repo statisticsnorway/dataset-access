@@ -30,8 +30,8 @@ class RoleControllerTest {
     }
 
     @Test
-    void thatPostRoleWorks() {
-        HttpResponse<String> response = httpClient.exchange(HttpRequest.POST("/role/reader", new Role("reader", Set.of(Privilege.READ))), String.class).blockingFirst();
+    void thatPutRoleWorks() {
+        HttpResponse<String> response = httpClient.exchange(HttpRequest.PUT("/role/reader", new Role("reader", Set.of(Privilege.READ))), String.class).blockingFirst();
         assertThat((CharSequence) response.getStatus()).isEqualTo(HttpStatus.CREATED);
         HttpHeaders headers = response.getHeaders();
         System.out.printf("HEADERS:%n%s%n", headers.asMap());
