@@ -38,6 +38,18 @@ class RoleControllerTest {
     }
 
     @Test
+    void thatUpsertPutRoleWorks() {
+        HttpResponse<String> upsert1 = httpClient.exchange(HttpRequest.PUT("/role/upsert_role", new Role("upsert_role", Set.of(Privilege.CREATE, Privilege.READ))), String.class).blockingFirst();
+        assertThat((CharSequence) upsert1.getStatus()).isEqualTo(HttpStatus.CREATED);
+        Role role1 = httpClient.exchange(HttpRequest.GET("/role/upsert_role"), Role.class).blockingFirst().getBody().orElseThrow();
+        assertThat(role1.privileges).isEqualTo(Set.of(Privilege.CREATE, Privilege.READ));
+        HttpResponse<String> upsert2 = httpClient.exchange(HttpRequest.PUT("/role/upsert_role", new Role("upsert_role", Set.of(Privilege.UPDATE, Privilege.DELETE))), String.class).blockingFirst();
+        assertThat((CharSequence) upsert2.getStatus()).isEqualTo(HttpStatus.CREATED);
+        Role role2 = httpClient.exchange(HttpRequest.GET("/role/upsert_role"), Role.class).blockingFirst().getBody().orElseThrow();
+        assertThat(role2.privileges).isEqualTo(Set.of(Privilege.UPDATE, Privilege.DELETE));
+    }
+
+    @Test
     void thatDeleteRoleWorks() {
         HttpResponse<String> response = httpClient.exchange(HttpRequest.DELETE("/role/reader"), String.class).blockingFirst();
         assertThat((CharSequence) response.getStatus()).isEqualTo(HttpStatus.OK);
