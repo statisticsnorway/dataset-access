@@ -29,7 +29,7 @@ public class RoleRepository {
 
     private static final String SELECT_ROLE = "SELECT roleId, document FROM role WHERE roleId = $1";
 
-    private static final String INSERT_ROLE = "INSERT INTO role (roleId, document) VALUES($1, $2::jsonb) ON CONFLICT (roleId) DO UPDATE SET document = $2";
+    private static final String INSERT_ROLE = "INSERT INTO role (roleId, document) VALUES($1, $2) ON CONFLICT (roleId) DO UPDATE SET document = $2";
 
     private static final String DELETE_ROLE = "DELETE FROM role WHERE roleId = $1";
 
@@ -59,8 +59,9 @@ public class RoleRepository {
     }
 
     Completable createRole(Role role) {
-        JsonArray privilegesArray = new JsonArray(role.privileges.stream().collect(Collectors.toList()));
-        JsonObject jsonObject = new JsonObject(Map.of("roleId", role.name, "privileges", privilegesArray));
+        JsonArray privilegesArray = new JsonArray();
+        role.privileges.stream().forEach(privilege -> privilegesArray.add(privilege));
+        JsonObject jsonObject = new JsonObject().put("roleId", role.name).put("privileges", privilegesArray);
         final Tuple arguments = Tuple.tuple().addString(role.name).addJson(Json.create(jsonObject));
         return client.rxPreparedQuery(INSERT_ROLE, arguments).ignoreElement();
     }
