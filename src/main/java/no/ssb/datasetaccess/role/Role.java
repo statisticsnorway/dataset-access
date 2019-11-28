@@ -1,8 +1,11 @@
 package no.ssb.datasetaccess.role;
 
+import io.vertx.core.json.JsonObject;
+
 import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public class Role {
     String name;
@@ -16,6 +19,13 @@ public class Role {
     public Role(String name, Set<Privilege> privileges) {
         this.name = name;
         this.privileges = privileges;
+    }
+
+    public static Role fromJson(JsonObject json) {
+        String name = json.getString("name");
+        Set<Privilege> privileges = json.getJsonArray("privileges").stream()
+                .map(o -> Privilege.valueOf((String) o)).collect(Collectors.toSet());
+        return new Role(name, privileges);
     }
 
     public String getName() {
