@@ -7,6 +7,7 @@ import io.micronaut.http.annotation.Delete;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.PathVariable;
 import io.micronaut.http.annotation.Put;
+import io.reactivex.Maybe;
 import io.reactivex.Single;
 
 import javax.inject.Inject;
@@ -24,7 +25,7 @@ public class UserController {
     }
 
     @Get("/{userId}")
-    public Single<HttpResponse<User>> getUser(@PathVariable String userId) {
+    public Maybe<HttpResponse<User>> getUser(@PathVariable String userId) {
         return repository.getUser(userId).map(HttpResponse::ok);
     }
 

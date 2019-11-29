@@ -9,7 +9,7 @@ import io.reactiverse.reactivex.pgclient.Tuple;
 import io.reactiverse.reactivex.pgclient.data.Json;
 import io.reactivex.Completable;
 import io.reactivex.CompletableObserver;
-import io.reactivex.Single;
+import io.reactivex.Maybe;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import no.ssb.datasetaccess.role.Role;
@@ -42,14 +42,14 @@ public class UserRepository {
         this.client = client;
     }
 
-    Single<User> getUser(String userId) {
-        return client.rxPreparedQuery(SELECT_USER, Tuple.of(userId)).map(this::toUser);
+    Maybe<User> getUser(String userId) {
+        return client.rxPreparedQuery(SELECT_USER, Tuple.of(userId)).flatMapMaybe(this::toUser);
     }
 
-    private User toUser(PgRowSet pgRowSet) {
+    private Maybe<User> toUser(PgRowSet pgRowSet) {
         PgIterator iterator = pgRowSet.iterator();
         if (!iterator.hasNext()) {
-            return null;
+            return Maybe.empty();
         }
         Row row = iterator.next();
         String userId = row.getString(0);
@@ -64,7 +64,7 @@ public class UserRepository {
                 .map(str -> (String) str)
                 .collect(Collectors.toCollection(TreeSet::new));
 
-        return new User(userId, roles, namespacePrefixes);
+        return Maybe.just(new User(userId, roles, namespacePrefixes));
     }
 
     Completable createUser(User user) {
@@ -85,5 +85,9 @@ public class UserRepository {
             }
             return CompletableObserver::onComplete;
         });
+    }
+
+    Completable deleteAllUsers() {
+        return client.rxQuery("DELETE FROM user_permission").ignoreElement();
     }
 }
