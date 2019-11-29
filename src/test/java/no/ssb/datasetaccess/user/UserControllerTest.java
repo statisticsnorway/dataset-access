@@ -49,7 +49,7 @@ class UserControllerTest {
         HttpResponse<User> response = httpClient.exchange(HttpRequest.GET("/user/john"), User.class).blockingFirst();
         assertThat((CharSequence) response.getStatus()).isEqualTo(HttpStatus.OK);
         final User actual = response.getBody().orElseThrow();
-        assertThat(actual).isEqualTo(expected);
+        assertThat(actual).isEqualToComparingFieldByField(expected);
     }
 
     @Test
@@ -68,7 +68,7 @@ class UserControllerTest {
         assertThat(response.getHeaders().get("Location")).isEqualTo("/user/john");
 
         final User createdUser = getUser(userToCreate.getUserId());
-        assertThat(createdUser).isEqualTo(userToCreate);
+        assertThat(createdUser).isEqualToComparingFieldByField(userToCreate);
     }
 
     @Test
@@ -82,7 +82,7 @@ class UserControllerTest {
         assertThat(response.getHeaders().get("Location")).isEqualTo("/user/john");
 
         final User actual = getUser(upsertUser.getUserId());
-        assertThat(actual).isEqualTo(upsertUser);
+        assertThat(actual).isEqualToComparingFieldByField(upsertUser);
     }
 
     @Test
