@@ -20,7 +20,6 @@ import javax.inject.Singleton;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 import static net.logstash.logback.marker.Markers.appendEntries;
@@ -42,7 +41,7 @@ public class UserRepository {
         this.client = client;
     }
 
-    Maybe<User> getUser(String userId) {
+    public Maybe<User> getUser(String userId) {
         return client.rxPreparedQuery(SELECT_USER, Tuple.of(userId)).flatMapMaybe(this::toUser);
     }
 
@@ -60,18 +59,12 @@ public class UserRepository {
                 .map(jsonRole -> Role.fromJson((JsonObject) jsonRole))
                 .collect(Collectors.toSet());
 
-        TreeSet<String> namespacePrefixes = jsonObject.getJsonArray("namespacePrefixes").stream()
-                .map(str -> (String) str)
-                .collect(Collectors.toCollection(TreeSet::new));
-
-        return Maybe.just(new User(userId, roles, namespacePrefixes));
+        return Maybe.just(new User(userId, roles));
     }
 
     Completable createUser(User user) {
 
-        JsonObject document = new JsonObject()
-                .put("roles", new JsonArray(new ArrayList<>(user.getRoles())))
-                .put("namespacePrefixes", new JsonArray(new ArrayList<>(user.getNamespacePrefixes())));
+        JsonObject document = new JsonObject().put("roles", new JsonArray(new ArrayList<>(user.getRoles())));
 
         Tuple arguments = Tuple.tuple().addString(user.getUserId()).addJson(Json.create(document));
 

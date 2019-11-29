@@ -10,15 +10,12 @@ import io.reactiverse.reactivex.pgclient.data.Json;
 import io.reactivex.Completable;
 import io.reactivex.CompletableObserver;
 import io.reactivex.Maybe;
-import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.inject.Singleton;
 import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 import static net.logstash.logback.marker.Markers.appendEntries;
 
@@ -53,16 +50,13 @@ public class RoleRepository {
         String roleId = row.getString(0);
         Json document = row.getJson(1);
         JsonObject jsonObject = (JsonObject) document.value();
-        JsonArray privileges = jsonObject.getJsonArray("privileges");
-        Set<Privilege> privilegesSet = privileges.stream().map(str -> Privilege.valueOf((String) str)).collect(Collectors.toSet());
-        return Maybe.just(new Role(roleId, privilegesSet));
+        Role role = Role.fromJson(jsonObject);
+        return Maybe.just(role);
     }
 
     Completable createRole(Role role) {
-        JsonArray privilegesArray = new JsonArray();
-        role.privileges.stream().forEach(privilege -> privilegesArray.add(privilege));
-        JsonObject jsonObject = new JsonObject().put("roleId", role.name).put("privileges", privilegesArray);
-        final Tuple arguments = Tuple.tuple().addString(role.name).addJson(Json.create(jsonObject));
+        JsonObject jsonObject = Role.toJsonObject(role);
+        final Tuple arguments = Tuple.tuple().addString(role.roleId).addJson(Json.create(jsonObject));
         return client.rxPreparedQuery(INSERT_ROLE, arguments).ignoreElement();
     }
 

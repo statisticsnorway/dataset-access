@@ -1,39 +1,69 @@
 package no.ssb.datasetaccess.role;
 
+import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import no.ssb.datasetaccess.dataset.DatasetState;
+import no.ssb.datasetaccess.dataset.Valuation;
 
 import java.util.Collections;
+import java.util.NavigableSet;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 public class Role {
-    String name;
+    String roleId;
     Set<Privilege> privileges;
+    NavigableSet<String> namespacePrefixes;
+    Valuation maxValuation;
+    Set<DatasetState> states;
 
     public Role() {
-        name = "";
+        roleId = "";
         privileges = Collections.emptySet();
+        namespacePrefixes = Collections.emptyNavigableSet();
+        maxValuation = Valuation.OPEN;
+        states = Collections.emptySet();
     }
 
-    public Role(String name, Set<Privilege> privileges) {
-        this.name = name;
+    public Role(String roleId, Set<Privilege> privileges, NavigableSet<String> namespacePrefixes, Valuation maxValuation, Set<DatasetState> states) {
+        this.roleId = roleId;
         this.privileges = privileges;
+        this.namespacePrefixes = namespacePrefixes;
+        this.maxValuation = maxValuation;
+        this.states = states;
     }
 
     public static Role fromJson(JsonObject json) {
-        String name = json.getString("name");
+        String roleId = json.getString("roleId");
         Set<Privilege> privileges = json.getJsonArray("privileges").stream()
                 .map(o -> Privilege.valueOf((String) o)).collect(Collectors.toSet());
-        return new Role(name, privileges);
+        NavigableSet<String> namespacePrefixes = json.getJsonArray("namespacePrefixes").stream()
+                .map(o -> (String) o).collect(Collectors.toCollection(TreeSet::new));
+        Valuation maxValuation = Valuation.valueOf(json.getString("maxValuation"));
+        Set<DatasetState> states = json.getJsonArray("states").stream()
+                .map(o -> DatasetState.valueOf((String) o)).collect(Collectors.toSet());
+        return new Role(roleId, privileges, namespacePrefixes, maxValuation, states);
     }
 
-    public String getName() {
-        return name;
+    public static JsonObject toJsonObject(Role role) {
+        JsonArray privilegesArray = new JsonArray();
+        role.getPrivileges().stream().forEach(privilege -> privilegesArray.add(privilege));
+        return new JsonObject()
+                .put("roleId", role.getRoleId())
+                .put("privileges", privilegesArray)
+                .put("namespacePrefixes", role.getNamespacePrefixes().stream().collect(() -> new JsonArray(), (ja, nsPrefix) -> ja.add(nsPrefix), (ja1, ja2) -> ja1.addAll(ja2)))
+                .put("maxValuation", role.getMaxValuation())
+                .put("states", role.getStates().stream().collect(() -> new JsonArray(), (ja, state) -> ja.add(state), (ja1, ja2) -> ja1.addAll(ja2)));
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public String getRoleId() {
+        return roleId;
+    }
+
+    public void setRoleId(String roleId) {
+        this.roleId = roleId;
     }
 
     public Set<Privilege> getPrivileges() {
@@ -44,25 +74,55 @@ public class Role {
         this.privileges = privileges;
     }
 
+    public NavigableSet<String> getNamespacePrefixes() {
+        return namespacePrefixes;
+    }
+
+    public void setNamespacePrefixes(NavigableSet<String> namespacePrefixes) {
+        this.namespacePrefixes = namespacePrefixes;
+    }
+
+    public Valuation getMaxValuation() {
+        return maxValuation;
+    }
+
+    public void setMaxValuation(Valuation maxValuation) {
+        this.maxValuation = maxValuation;
+    }
+
+    public Set<DatasetState> getStates() {
+        return states;
+    }
+
+    public void setStates(Set<DatasetState> states) {
+        this.states = states;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Role role = (Role) o;
-        return name.equals(role.name) &&
-                privileges.equals(role.privileges);
+        return roleId.equals(role.roleId) &&
+                privileges.equals(role.privileges) &&
+                namespacePrefixes.equals(role.namespacePrefixes) &&
+                maxValuation == role.maxValuation &&
+                states.equals(role.states);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, privileges);
+        return Objects.hash(roleId, privileges, namespacePrefixes, maxValuation, states);
     }
 
     @Override
     public String toString() {
         return "Role{" +
-                "name='" + name + '\'' +
+                "roleId='" + roleId + '\'' +
                 ", privileges=" + privileges +
+                ", namespacePrefixes=" + namespacePrefixes +
+                ", maxValuation=" + maxValuation +
+                ", states=" + states +
                 '}';
     }
 }

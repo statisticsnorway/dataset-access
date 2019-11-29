@@ -7,6 +7,8 @@ import io.micronaut.http.client.RxHttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.test.annotation.MicronautTest;
 import no.ssb.datasetaccess.HttpClientTestUtils;
+import no.ssb.datasetaccess.dataset.DatasetState;
+import no.ssb.datasetaccess.dataset.Valuation;
 import no.ssb.datasetaccess.role.Privilege;
 import no.ssb.datasetaccess.role.Role;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,7 +46,7 @@ class UserControllerTest {
 
     @Test
     void thatGetUserWorks() {
-        final User expected = new User("john", Set.of(new Role("reader", Set.of(Privilege.READ))), new TreeSet<>(Set.of("/a/b/c")));
+        final User expected = new User("john", Set.of(new Role("reader", Set.of(Privilege.READ), new TreeSet<>(Set.of("/a/b/c")), Valuation.INTERNAL, Set.of(DatasetState.PROCESSED))));
         createUser(expected);
         HttpResponse<User> response = httpClient.exchange(HttpRequest.GET("/user/john"), User.class).blockingFirst();
         assertThat((CharSequence) response.getStatus()).isEqualTo(HttpStatus.OK);
@@ -62,7 +64,7 @@ class UserControllerTest {
 
     @Test
     void thatPutWorks() {
-        final User userToCreate = new User("john", Set.of(new Role("reader", Set.of(Privilege.READ))), new TreeSet<>(Set.of("/a/b/c")));
+        final User userToCreate = new User("john", Set.of(new Role("reader", Set.of(Privilege.READ), new TreeSet<>(Set.of("/a/b/c")), Valuation.INTERNAL, Set.of(DatasetState.PROCESSED))));
         HttpResponse<String> response = httpClient.exchange(HttpRequest.PUT("/user/john", userToCreate), String.class).blockingFirst();
         assertThat((CharSequence) response.getStatus()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getHeaders().get("Location")).isEqualTo("/user/john");
@@ -73,10 +75,10 @@ class UserControllerTest {
 
     @Test
     void thatUpsertWorks() {
-        final User initialUser = new User("john", Set.of(new Role("reader", Set.of(Privilege.READ))), new TreeSet<>(Set.of("/a/b/c")));
+        final User initialUser = new User("john", Set.of(new Role("reader", Set.of(Privilege.READ), new TreeSet<>(Set.of("/a/b/c")), Valuation.INTERNAL, Set.of(DatasetState.RAW))));
         createUser(initialUser);
 
-        final User upsertUser = new User("john", Set.of(new Role("reader", Set.of(Privilege.READ, Privilege.DELETE))), new TreeSet<>(Set.of("/a/b/c", "x/y/z")));
+        final User upsertUser = new User("john", Set.of(new Role("reader", Set.of(Privilege.READ, Privilege.DELETE), new TreeSet<>(Set.of("/a/b/c", "x/y/z")), Valuation.OPEN, Set.of(DatasetState.RAW, DatasetState.INPUT))));
         HttpResponse<String> response = httpClient.exchange(HttpRequest.PUT("/user/john", upsertUser), String.class).blockingFirst();
         assertThat((CharSequence) response.getStatus()).isEqualTo(HttpStatus.CREATED);
         assertThat(response.getHeaders().get("Location")).isEqualTo("/user/john");
@@ -87,7 +89,7 @@ class UserControllerTest {
 
     @Test
     void thatDeleteUserWorks() {
-        final User userToDelete = new User("john", Set.of(new Role("reader", Set.of(Privilege.READ))), new TreeSet<>(Set.of("/a/b/c")));
+        final User userToDelete = new User("john", Set.of(new Role("reader", Set.of(Privilege.READ), new TreeSet<>(Set.of("/a/b/c")), Valuation.OPEN, Set.of(DatasetState.OTHER))));
         createUser(userToDelete);
         HttpResponse<String> response = httpClient.exchange(HttpRequest.DELETE("/user/john"), String.class).blockingFirst();
         assertThat((CharSequence) response.getStatus()).isEqualTo(HttpStatus.OK);
