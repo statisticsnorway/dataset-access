@@ -4,13 +4,15 @@ import java.util.Objects;
 
 public class Dataset {
 
+    String datasetId;
     DatasetState state;
     Valuation valuation;
 
     public Dataset() {
     }
 
-    public Dataset(DatasetState state, Valuation valuation) {
+    public Dataset(String datasetId, DatasetState state, Valuation valuation) {
+        this.datasetId = datasetId;
         this.state = state;
         this.valuation = valuation;
     }
@@ -31,24 +33,34 @@ public class Dataset {
         this.valuation = valuation;
     }
 
+    public String getDatasetId() {
+        return datasetId;
+    }
+
+    public void setDatasetId(String datasetId) {
+        this.datasetId = datasetId;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Dataset dataset = (Dataset) o;
-        return state == dataset.state &&
+        return datasetId.equals(dataset.datasetId) &&
+                state == dataset.state &&
                 valuation == dataset.valuation;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(state, valuation);
+        return Objects.hash(datasetId, state, valuation);
     }
 
     @Override
     public String toString() {
         return "Dataset{" +
-                "state=" + state +
+                "datasetId='" + datasetId + '\'' +
+                ", state=" + state +
                 ", valuation=" + valuation +
                 '}';
     }

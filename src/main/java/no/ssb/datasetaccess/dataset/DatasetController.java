@@ -6,26 +6,31 @@ import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Delete;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.PathVariable;
-import io.micronaut.http.annotation.Post;
+import io.micronaut.http.annotation.Put;
+import io.reactivex.Maybe;
 import io.reactivex.Single;
 
+import javax.inject.Inject;
 import java.net.URI;
 
 @Controller("/dataset")
 public class DatasetController {
 
-    @Post("/{datasetId}")
+    @Inject
+    DatasetRepository repository;
+
+    @Put("/{datasetId}")
     public Single<HttpResponse<String>> createDataset(@PathVariable String datasetId, @Body Dataset dataset) {
-        return Single.just(HttpResponse.created(URI.create("/dataset/" + datasetId)));
+        return repository.createDataset(dataset).toSingleDefault(HttpResponse.created(URI.create("/dataset/" + datasetId)));
     }
 
     @Get("/{datasetId}")
-    public Single<HttpResponse<Dataset>> getDataset(@PathVariable String datasetId) {
-        return Single.just(HttpResponse.ok(new Dataset(DatasetState.RAW, Valuation.OPEN)));
+    public Maybe<HttpResponse<Dataset>> getDataset(@PathVariable String datasetId) {
+        return repository.getDataset(datasetId).map(dataset -> HttpResponse.ok(dataset));
     }
 
     @Delete("/{datasetId}")
     public Single<HttpResponse<Dataset>> deleteDataset(@PathVariable String datasetId) {
-        return Single.just(HttpResponse.ok());
+        return repository.deleteDataset(datasetId).toSingleDefault(HttpResponse.ok());
     }
 }
