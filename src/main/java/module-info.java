@@ -25,6 +25,8 @@ module no.ssb.datasetaccess {
     requires jdk.naming.dns; // required by netty dns libraries used by reactive postgres
 
     opens no.ssb.datasetaccess;
-
-    exports no.ssb.datasetaccess;
+    opens no.ssb.datasetaccess.access;
+    opens no.ssb.datasetaccess.dataset;
+    opens no.ssb.datasetaccess.role;
+    opens no.ssb.datasetaccess.user;
 }
