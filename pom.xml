@@ -5,10 +5,14 @@
     <artifactId>dataset-access</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <properties>
-        <micronaut.version>1.2.6</micronaut.version>
+        <micronaut.version>1.3.0.M1</micronaut.version>
         <jdk.version>11</jdk.version>
         <maven.compiler.target>${jdk.version}</maven.compiler.target>
         <maven.compiler.source>${jdk.version}</maven.compiler.source>
+        <maven.compiler.release>${jdk.version}</maven.compiler.release>
+        <maven.compiler.testSource>${jdk.version}</maven.compiler.testSource>
+        <maven.compiler.testRelease>${jdk.version}</maven.compiler.testRelease>
+        <maven.compiler.testTarget>${jdk.version}</maven.compiler.testTarget>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <exec.mainClass>no.ssb.datasetaccess.Application</exec.mainClass>
