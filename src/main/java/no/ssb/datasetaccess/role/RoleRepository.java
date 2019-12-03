@@ -14,12 +14,10 @@ import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.inject.Singleton;
 import java.util.Map;
 
 import static net.logstash.logback.marker.Markers.appendEntries;
 
-@Singleton
 public class RoleRepository {
 
     private static final Logger LOG = LoggerFactory.getLogger(RoleRepository.class);

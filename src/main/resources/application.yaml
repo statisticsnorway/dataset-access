@@ -1,0 +1,8 @@
+web:
+  debug: true
+  page-size: 20
+  ratio: 1.3
+
+webserver:
+  port: 8080
+  bind-address: "0.0.0.0"

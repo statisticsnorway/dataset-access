@@ -16,7 +16,6 @@ import no.ssb.datasetaccess.role.Role;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.inject.Singleton;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Set;
@@ -24,7 +23,6 @@ import java.util.stream.Collectors;
 
 import static net.logstash.logback.marker.Markers.appendEntries;
 
-@Singleton
 public class UserRepository {
 
     private static final Logger LOG = LoggerFactory.getLogger(UserRepository.class);

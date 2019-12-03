@@ -1,36 +1,34 @@
 package no.ssb.datasetaccess.role;
 
-import io.micronaut.http.HttpResponse;
-import io.micronaut.http.annotation.Body;
-import io.micronaut.http.annotation.Controller;
-import io.micronaut.http.annotation.Delete;
-import io.micronaut.http.annotation.Get;
-import io.micronaut.http.annotation.PathVariable;
-import io.micronaut.http.annotation.Put;
-import io.reactivex.Maybe;
-import io.reactivex.Single;
 
-import javax.inject.Inject;
-import java.net.URI;
+import io.helidon.common.http.Http;
+import io.helidon.webserver.Handler;
+import io.helidon.webserver.Routing;
+import io.helidon.webserver.Service;
 
-@Controller("/role")
-public class RoleController {
+public class RoleController implements Service {
 
-    @Inject
-    RoleRepository repository;
+    final RoleRepository repository;
 
-    @Put("/{roleId}")
-    public Single<HttpResponse<String>> createRole(@PathVariable String roleId, @Body Role role) {
-        return repository.createRole(role).toSingleDefault(HttpResponse.created(URI.create("/role/" + roleId)));
+    public RoleController(RoleRepository repository) {
+        this.repository = repository;
     }
 
-    @Get("/{roleId}")
-    public Maybe<HttpResponse<Role>> getRole(@PathVariable String roleId) {
-        return repository.getRole(roleId).map(role -> HttpResponse.ok(role));
-    }
+    @Override
+    public void update(Routing.Rules rules) {
+        rules.get("/{roleId}", (req, res) -> res.send(repository.getRole(req.path().param("roleId"))));
 
-    @Delete("/{roleId}")
-    public Single<HttpResponse<String>> deleteRole(@PathVariable String roleId) {
-        return repository.deleteRole(roleId).toSingleDefault(HttpResponse.ok());
+        rules.put("/{roleId}", Handler.create(Role.class, (req, res, role) -> {
+            if (!req.path().param("roleId").equals(role.getRoleId())) {
+                res.status(Http.Status.BAD_REQUEST_400).send("roleId in path must match that in body");
+            }
+            repository.createRole(role)
+                    .doOnError(t -> res.status(Http.Status.INTERNAL_SERVER_ERROR_500).send(t.getMessage()))
+                    .doOnComplete(() -> res.status(Http.Status.CREATED_201).send());
+        }));
+
+        rules.delete("/{roleId}", (req, res) -> repository.deleteRole(req.path().param("roleId"))
+                .doOnError(t -> res.status(Http.Status.INTERNAL_SERVER_ERROR_500).send(t.getMessage()))
+                .doOnComplete(() -> res.send()));
     }
 }

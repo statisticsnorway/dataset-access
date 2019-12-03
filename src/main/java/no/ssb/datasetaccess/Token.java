@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.micronaut.core.util.StringUtils;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -24,7 +23,7 @@ public class Token {
 
     static Token create(final String authorization) throws TokenParseException {
 
-        if (StringUtils.isEmpty(authorization) || !authorization.startsWith("Bearer ")) {
+        if (authorization == null || authorization.isBlank() || !authorization.startsWith("Bearer ")) {
             throw new TokenParseException("Invalid token. Expected \"Bearer <token>\"");
         }
 
