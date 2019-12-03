@@ -18,7 +18,7 @@ module no.ssb.datasetaccess {
      * missing from jvm.
      */
     requires java.sql; // required by micronaut-metrics
-    //requires java.desktop; // required by snakeyaml for bean introspection
+    requires java.desktop; // required by jackson
     requires jdk.zipfs; // required by micronaut for classpath scanning
     requires jdk.management.agent; // required to run application with the com.sun.management.jmxremote property
     requires jdk.unsupported; // required by netty to allow reliable low-level API access to direct-buffers
@@ -29,4 +29,10 @@ module no.ssb.datasetaccess {
     opens no.ssb.datasetaccess.dataset to io.micronaut.inject, com.fasterxml.jackson.databind;
     opens no.ssb.datasetaccess.role to io.micronaut.inject, com.fasterxml.jackson.databind;
     opens no.ssb.datasetaccess.user to io.micronaut.inject, com.fasterxml.jackson.databind;
+
+    exports no.ssb.datasetaccess to io.micronaut.core;
+    exports no.ssb.datasetaccess.access to io.micronaut.core;
+    exports no.ssb.datasetaccess.dataset to io.micronaut.core;
+    exports no.ssb.datasetaccess.role to io.micronaut.core;
+    exports no.ssb.datasetaccess.user to io.micronaut.core;
 }
