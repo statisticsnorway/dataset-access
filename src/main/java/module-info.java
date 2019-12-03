@@ -24,9 +24,9 @@ module no.ssb.datasetaccess {
     requires jdk.unsupported; // required by netty to allow reliable low-level API access to direct-buffers
     requires jdk.naming.dns; // required by netty dns libraries used by reactive postgres
 
-    opens no.ssb.datasetaccess;
-    opens no.ssb.datasetaccess.access;
-    opens no.ssb.datasetaccess.dataset;
-    opens no.ssb.datasetaccess.role;
-    opens no.ssb.datasetaccess.user;
+    opens no.ssb.datasetaccess to io.micronaut.inject, com.fasterxml.jackson.databind;
+    opens no.ssb.datasetaccess.access to io.micronaut.inject, com.fasterxml.jackson.databind;
+    opens no.ssb.datasetaccess.dataset to io.micronaut.inject, com.fasterxml.jackson.databind;
+    opens no.ssb.datasetaccess.role to io.micronaut.inject, com.fasterxml.jackson.databind;
+    opens no.ssb.datasetaccess.user to io.micronaut.inject, com.fasterxml.jackson.databind;
 }
