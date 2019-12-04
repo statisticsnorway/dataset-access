@@ -1,14 +1,15 @@
 package no.ssb.datasetaccess.user;
 
 import no.ssb.datasetaccess.JacksonUtils;
+import no.ssb.datasetaccess.testing.IntegrationTestExtension;
 import no.ssb.datasetaccess.testing.ResponseHelper;
 import no.ssb.datasetaccess.testing.TestClient;
 import no.ssb.datasetaccess.testing.TestServer;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
+import javax.inject.Inject;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -17,21 +18,14 @@ import java.util.concurrent.TimeoutException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+@ExtendWith(IntegrationTestExtension.class)
 class UserServiceTest {
 
-    static TestServer server;
-    static TestClient client;
+    @Inject
+    TestServer server;
 
-    @BeforeAll
-    static void setupApplication() {
-        server = new TestServer();
-        client = server.client();
-    }
-
-    @AfterAll
-    static void stopApplication() {
-        server.shutdown();
-    }
+    @Inject
+    TestClient client;
 
     @BeforeEach
     void clearUserRepository() throws InterruptedException, ExecutionException, TimeoutException {

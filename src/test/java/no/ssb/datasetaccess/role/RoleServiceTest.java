@@ -2,14 +2,15 @@ package no.ssb.datasetaccess.role;
 
 import no.ssb.datasetaccess.dataset.DatasetState;
 import no.ssb.datasetaccess.dataset.Valuation;
+import no.ssb.datasetaccess.testing.IntegrationTestExtension;
 import no.ssb.datasetaccess.testing.ResponseHelper;
 import no.ssb.datasetaccess.testing.TestClient;
 import no.ssb.datasetaccess.testing.TestServer;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
+import javax.inject.Inject;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutionException;
@@ -19,21 +20,14 @@ import java.util.concurrent.TimeoutException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+@ExtendWith(IntegrationTestExtension.class)
 class RoleServiceTest {
 
-    static TestServer server;
-    static TestClient client;
+    @Inject
+    TestServer server;
 
-    @BeforeAll
-    static void setupApplication() {
-        server = new TestServer();
-        client = server.client();
-    }
-
-    @AfterAll
-    static void stopApplication() {
-        server.shutdown();
-    }
+    @Inject
+    TestClient client;
 
     @BeforeEach
     void clearRoleRepository() throws InterruptedException, ExecutionException, TimeoutException {
