@@ -15,10 +15,23 @@ public class UserService implements Service {
 
     @Override
     public void update(Routing.Rules rules) {
-        rules.get("/{userId}", (req, res) -> repository.getUser(req.path().param("userId")).thenAccept(user -> res.send(user)));
+        rules.get("/{userId}", getUserHandler());
+        rules.put("/{userId}", putUserHandler());
+        rules.delete("/{userId}", deleteUserHandler());
+    }
 
-        rules.put("/{userId}", Handler.create(User.class, (req, res, user) -> {
-            if (!req.path().param("userId").equals(user.getUserId())) {
+    private Handler getUserHandler() {
+        return (req, res) -> {
+            String userId = req.path().param("userId");
+            repository.getUser(userId)
+                    .thenAccept(res::send);
+        };
+    }
+
+    private Handler putUserHandler() {
+        return Handler.create(User.class, (req, res, user) -> {
+            String userId = req.path().param("userId");
+            if (!userId.equals(user.getUserId())) {
                 res.status(Http.Status.BAD_REQUEST_400).send("userId in path must match that in body");
             }
             repository.createUser(user)
@@ -27,14 +40,18 @@ public class UserService implements Service {
                         res.status(Http.Status.INTERNAL_SERVER_ERROR_500).send(t.getMessage());
                         return null;
                     });
-        }));
+        });
+    }
 
-        rules.delete("/{userId}", (req, res) -> repository.deleteUser(req.path().param("userId"))
-                .thenRun(() -> res.send())
-                .exceptionally(t -> {
-                    res.status(Http.Status.INTERNAL_SERVER_ERROR_500).send(t.getMessage());
-                    return null;
-                })
-        );
+    private Handler deleteUserHandler() {
+        return (req, res) -> {
+            String userId = req.path().param("userId");
+            repository.deleteUser(userId)
+                    .thenRun(res::send)
+                    .exceptionally(t -> {
+                        res.status(Http.Status.INTERNAL_SERVER_ERROR_500).send(t.getMessage());
+                        return null;
+                    });
+        };
     }
 }

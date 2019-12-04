@@ -1,6 +1,7 @@
 package no.ssb.datasetaccess.access;
 
 import io.helidon.common.http.Http;
+import io.helidon.webserver.Handler;
 import io.helidon.webserver.Routing;
 import io.helidon.webserver.Service;
 import no.ssb.datasetaccess.dataset.DatasetState;
@@ -12,7 +13,6 @@ import no.ssb.datasetaccess.user.UserRepository;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
 
 public class AccessService implements Service {
 
@@ -26,7 +26,11 @@ public class AccessService implements Service {
 
     @Override
     public void update(Routing.Rules rules) {
-        rules.get("/{userId}", (req, res) -> {
+        rules.get("/{userId}", getAccessHandler());
+    }
+
+    private Handler getAccessHandler() {
+        return (req, res) -> {
             String userId = req.path().param("userId");
             Privilege privilege = Privilege.valueOf(req.queryParams().first("privilege").orElseThrow());
             String namespace = req.queryParams().first("namespace").orElseThrow();
@@ -38,16 +42,15 @@ public class AccessService implements Service {
                         res.status(Http.Status.INTERNAL_SERVER_ERROR_500).send(t.getMessage());
                         return null;
                     });
-        });
-
+        };
     }
 
-    public CompletionStage<Boolean> hasAccess(String userId, Privilege privilege, String namespace, Valuation valuation, DatasetState state) {
+    public CompletableFuture<Boolean> hasAccess(String userId, Privilege privilege, String namespace, Valuation valuation, DatasetState state) {
         CompletableFuture<Boolean> future = new CompletableFuture<>();
         userRepository.getUser(userId).thenAccept(user -> {
             List<CompletableFuture<Void>> roleCompletableList = new ArrayList<>();
             for (String roleId : user.getRoles()) {
-                roleCompletableList.add((CompletableFuture<Void>) roleRepository.getRole(roleId).thenAccept(role -> {
+                roleCompletableList.add(roleRepository.getRole(roleId).thenAccept(role -> {
                     if (!role.getPrivileges().contains(privilege)) {
                         return;
                     }
