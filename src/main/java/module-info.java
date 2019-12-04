@@ -4,15 +4,14 @@ module no.ssb.datasetaccess {
     requires org.reactivestreams;
     requires com.fasterxml.jackson.databind;
     requires com.fasterxml.jackson.annotation;
+    requires com.fasterxml.jackson.core;
+    requires vertx.core;
     requires vertx.pg.client;
     requires vertx.sql.client;
-    requires vertx.core;
-    requires reactive.pg.client;
-    requires io.reactivex.rxjava2;
     requires io.helidon.webserver;
     requires io.helidon.config;
     requires io.helidon.media.jackson.server;
-
+    requires java.net.http;
     requires io.helidon.common.reactive;
 
     /*

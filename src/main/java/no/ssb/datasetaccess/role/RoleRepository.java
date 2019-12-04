@@ -1,32 +1,20 @@
 package no.ssb.datasetaccess.role;
 
 
-import io.reactiverse.reactivex.pgclient.PgIterator;
-import io.reactiverse.reactivex.pgclient.PgPool;
-import io.reactiverse.reactivex.pgclient.PgRowSet;
-import io.reactiverse.reactivex.pgclient.Row;
-import io.reactiverse.reactivex.pgclient.Tuple;
-import io.reactiverse.reactivex.pgclient.data.Json;
-import io.reactivex.Completable;
-import io.reactivex.CompletableObserver;
-import io.reactivex.Maybe;
 import io.vertx.core.json.JsonObject;
+import io.vertx.pgclient.PgPool;
+import io.vertx.sqlclient.Row;
+import io.vertx.sqlclient.RowIterator;
+import io.vertx.sqlclient.RowSet;
+import io.vertx.sqlclient.Tuple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Map;
-
-import static net.logstash.logback.marker.Markers.appendEntries;
+import java.util.concurrent.CompletableFuture;
 
 public class RoleRepository {
 
     private static final Logger LOG = LoggerFactory.getLogger(RoleRepository.class);
-
-    private static final String SELECT_ROLE = "SELECT roleId, document FROM role WHERE roleId = $1";
-
-    private static final String INSERT_ROLE = "INSERT INTO role (roleId, document) VALUES($1, $2) ON CONFLICT (roleId) DO UPDATE SET document = $2";
-
-    private static final String DELETE_ROLE = "DELETE FROM role WHERE roleId = $1";
 
     private final PgPool client;
 
@@ -34,40 +22,61 @@ public class RoleRepository {
         this.client = client;
     }
 
-    Maybe<Role> getRole(String roleId) {
-        return client.rxPreparedQuery(SELECT_ROLE, Tuple.of(roleId))
-                .flatMapMaybe(pgRowSet -> toRole(pgRowSet));
-    }
-
-    private Maybe<Role> toRole(PgRowSet pgRowSet) {
-        PgIterator iterator = pgRowSet.iterator();
-        if (!iterator.hasNext()) {
-            return Maybe.empty();
-        }
-        Row row = iterator.next();
-        String roleId = row.getString(0);
-        Json document = row.getJson(1);
-        JsonObject jsonObject = (JsonObject) document.value();
-        Role role = Role.fromJson(jsonObject);
-        return Maybe.just(role);
-    }
-
-    Completable createRole(Role role) {
-        JsonObject jsonObject = Role.toJsonObject(role);
-        final Tuple arguments = Tuple.tuple().addString(role.roleId).addJson(Json.create(jsonObject));
-        return client.rxPreparedQuery(INSERT_ROLE, arguments).ignoreElement();
-    }
-
-    Completable deleteRole(String roleId) {
-        return client.rxPreparedQuery(DELETE_ROLE, Tuple.of(roleId)).flatMapCompletable(rows -> {
-            if (rows.rowCount() > 0) {
-                LOG.info(appendEntries(Map.of("roleId", roleId)), "Deleted role");
+    public CompletableFuture<Role> getRole(String roleId) {
+        CompletableFuture<Role> future = new CompletableFuture<>();
+        client.preparedQuery("SELECT roleId, document FROM role WHERE roleId = $1", Tuple.of(roleId), ar -> {
+            if (!ar.succeeded()) {
+                future.completeExceptionally(ar.cause());
+                return;
             }
-            return CompletableObserver::onComplete;
+            RowSet<Row> result = ar.result();
+            RowIterator<Row> iterator = result.iterator();
+            if (!iterator.hasNext()) {
+                future.complete(null);
+                return;
+            }
+            Row row = iterator.next();
+            Role role = Role.fromVertxJson(row.get(JsonObject.class, 1));
+            future.complete(role);
         });
+        return future;
     }
 
-    Completable deleteAllRoles() {
-        return client.rxQuery("DELETE FROM role").ignoreElement();
+    public CompletableFuture<Void> createRole(Role role) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        Tuple arguments = Tuple.tuple().addString(role.roleId).addValue(Role.toVertxJsonObject(role));
+        client.preparedQuery("INSERT INTO role (roleId, document) VALUES($1, $2) ON CONFLICT (roleId) DO UPDATE SET document = $2",
+                arguments, ar -> {
+                    if (!ar.succeeded()) {
+                        future.completeExceptionally(ar.cause());
+                        return;
+                    }
+                    future.complete(null);
+                });
+        return future;
+    }
+
+    public CompletableFuture<Void> deleteRole(String roleId) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        client.preparedQuery("DELETE FROM role WHERE roleId = $1", Tuple.of(roleId), ar -> {
+            if (!ar.succeeded()) {
+                future.completeExceptionally(ar.cause());
+                return;
+            }
+            future.complete(null);
+        });
+        return future;
+    }
+
+    public CompletableFuture<Void> deleteAllRoles() {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        client.query("DELETE FROM role", ar -> {
+            if (!ar.succeeded()) {
+                future.completeExceptionally(ar.cause());
+                return;
+            }
+            future.complete(null);
+        });
+        return future;
     }
 }

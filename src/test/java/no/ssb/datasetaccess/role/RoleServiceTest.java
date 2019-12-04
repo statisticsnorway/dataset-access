@@ -1,42 +1,86 @@
 package no.ssb.datasetaccess.role;
 
+import io.helidon.common.http.Http;
 import no.ssb.datasetaccess.Application;
 import no.ssb.datasetaccess.dataset.DatasetState;
 import no.ssb.datasetaccess.dataset.Valuation;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandlers;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
-class RoleControllerTest {
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-    Application application = new Application();
-    RoleRepository repository = application.getRoleRepository();
+class RoleServiceTest {
+
+    static Application application;
+
+    static HttpClient httpClient = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(3))
+            .build();
+
+    @BeforeAll
+    static void setupApplication() {
+        application = new Application();
+    }
+
+    @AfterAll
+    static void stopApplication() {
+        application.getWebServer().shutdown();
+    }
 
     @BeforeEach
-    void clearRoleRepository() {
-        repository.deleteAllRoles().blockingAwait(3, TimeUnit.SECONDS);
+    void clearRoleRepository() throws InterruptedException, ExecutionException, TimeoutException {
+        application.getRoleRepository().deleteAllRoles().get(3, TimeUnit.SECONDS);
+    }
+
+    URI toUri(String path) {
+        try {
+            return new URI("http", "test", "localhost", application.getWebServer().port(), path, "", "");
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     Role createRole(String roleId, Set<Privilege> privileges, Set<String> namespacePrefixes, Valuation maxValuation, Set<DatasetState> states) {
         Role role = new Role(roleId, privileges, new TreeSet<>(namespacePrefixes), maxValuation, states);
-        repository.createRole(role).blockingAwait(3, TimeUnit.SECONDS);
+        try {
+            application.getRoleRepository().createRole(role).get(3, TimeUnit.SECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            throw new RuntimeException(e);
+        }
         return role;
     }
 
     Role readRole(String roleId) {
-        return repository.getRole(roleId).blockingGet();
+        return application.getRoleRepository().getRole(roleId).join();
     }
 
     @Test
-    void thatGetRoleWorks() {
-        //Role expectedRole = createRole("writer", Set.of(Privilege.CREATE, Privilege.UPDATE), Set.of("/ns/test"), Valuation.INTERNAL, Set.of(DatasetState.RAW, DatasetState.INPUT));
-        //HttpResponse<Role> response = httpClient.exchange(HttpRequest.GET("/role/writer"), Role.class).blockingFirst();
-        //Role role = response.getBody().orElseThrow();
-        //assertThat((CharSequence) response.getStatus()).isEqualTo(HttpStatus.OK);
-        //assertThat(role).isEqualTo(expectedRole);
+    void thatGetRoleWorks() throws IOException, InterruptedException {
+        Role expectedRole = createRole("writer", Set.of(Privilege.CREATE, Privilege.UPDATE), Set.of("/ns/test"), Valuation.INTERNAL, Set.of(DatasetState.RAW, DatasetState.INPUT));
+        HttpRequest request = HttpRequest.newBuilder().GET().uri(toUri("/role/writer")).build();
+        HttpResponse<String> response = httpClient.send(request, BodyHandlers.ofString(StandardCharsets.UTF_8));
+        assertEquals(Http.Status.OK_200.code(), response.statusCode());
+        String body = response.body();
+        System.out.printf("%s%n", body);
+        Role role = Role.fromJsonString(body);
+        assertEquals(expectedRole, role);
     }
 
     @Test

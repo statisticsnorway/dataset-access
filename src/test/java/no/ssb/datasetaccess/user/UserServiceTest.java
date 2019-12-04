@@ -1,27 +1,50 @@
 package no.ssb.datasetaccess.user;
 
 import no.ssb.datasetaccess.Application;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.net.http.HttpClient;
+import java.time.Duration;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
-class UserControllerTest {
+class UserServiceTest {
 
-    private Application application = new Application();
-    private UserRepository repository = application.getUserRepository();
+    static Application application;
+
+    static HttpClient httpClient = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(3))
+            .build();
+
+    @BeforeAll
+    static void setupApplication() {
+        application = new Application();
+    }
+
+    @AfterAll
+    static void stopApplication() {
+        application.getWebServer().shutdown();
+    }
 
     @BeforeEach
-    void clearUserRepository() {
-        repository.deleteAllUsers().blockingAwait(3, TimeUnit.SECONDS);
+    void clearUserRepository() throws InterruptedException, ExecutionException, TimeoutException {
+        application.getUserRepository().deleteAllUsers().get(3, TimeUnit.SECONDS);
     }
 
     void createUser(User user) {
-        repository.createUser(user).blockingAwait(3, TimeUnit.SECONDS);
+        try {
+            application.getUserRepository().createUser(user).get(3, TimeUnit.SECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     User getUser(String userId) {
-        return repository.getUser(userId).blockingGet();
+        return application.getUserRepository().getUser(userId).join();
     }
 
     @Test

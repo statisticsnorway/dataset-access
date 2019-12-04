@@ -25,7 +25,7 @@ class RoleTest {
                 .put("maxValuation", Valuation.INTERNAL)
                 .put("states", states);
 
-        Role actual = Role.fromJson(json);
+        Role actual = Role.fromVertxJson(json);
         Role expected = new Role("john", Set.of(Privilege.READ), new TreeSet<>(Set.of("/ns/a/b/c")), Valuation.INTERNAL, Set.of(DatasetState.RAW));
 
         assertThat(actual).isEqualTo(expected);

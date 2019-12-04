@@ -1,18 +1,20 @@
 package no.ssb.datasetaccess.user;
 
-import no.ssb.datasetaccess.role.Role;
+import io.vertx.core.json.JsonArray;
+import io.vertx.core.json.JsonObject;
 
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public class User {
     String userId;
-    Set<Role> roles;
+    Set<String> roles;
 
     public User() {
     }
 
-    public User(String userId, Set<Role> roles) {
+    public User(String userId, Set<String> roles) {
         this.userId = userId;
         this.roles = roles;
     }
@@ -25,12 +27,27 @@ public class User {
         this.userId = userId;
     }
 
-    public Set<Role> getRoles() {
+    public Set<String> getRoles() {
         return roles;
     }
 
-    public void setRoles(Set<Role> roles) {
+    public void setRoles(Set<String> roles) {
         this.roles = roles;
+    }
+
+    public static User fromJson(JsonObject json) {
+        String userId = json.getString("userId");
+        Set<String> roles = json.getJsonArray("roles").stream()
+                .map(o -> (String) o).collect(Collectors.toSet());
+        return new User(userId, roles);
+    }
+
+    public static JsonObject toJsonObject(User user) {
+        JsonArray rolesArray = new JsonArray();
+        user.getRoles().stream().forEach(role -> rolesArray.add(role));
+        return new JsonObject()
+                .put("userId", user.getUserId())
+                .put("roles", rolesArray);
     }
 
     @Override

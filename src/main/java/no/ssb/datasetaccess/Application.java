@@ -6,34 +6,48 @@ import io.helidon.media.jackson.server.JacksonSupport;
 import io.helidon.webserver.Routing;
 import io.helidon.webserver.ServerConfiguration;
 import io.helidon.webserver.WebServer;
-import io.reactiverse.pgclient.PgPoolOptions;
-import io.reactiverse.reactivex.pgclient.PgPool;
-import no.ssb.datasetaccess.role.RoleController;
+import io.vertx.pgclient.PgConnectOptions;
+import io.vertx.pgclient.PgPool;
+import io.vertx.sqlclient.PoolOptions;
+import no.ssb.datasetaccess.access.AccessService;
 import no.ssb.datasetaccess.role.RoleRepository;
+import no.ssb.datasetaccess.role.RoleService;
 import no.ssb.datasetaccess.user.UserRepository;
+import no.ssb.datasetaccess.user.UserService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static io.helidon.config.ConfigSources.classpath;
 
 public class Application {
 
+    private static final Logger LOG = LoggerFactory.getLogger(Application.class);
+
     public static void main(String[] args) {
-        new Application();
+        Application application = new Application();
+        LOG.info("Webserver running at port: {}", application.webServer.port());
     }
 
     final UserRepository userRepository;
     final RoleRepository roleRepository;
+    final WebServer webServer;
 
     public Application() {
-        PgPoolOptions pgPoolOptions = new PgPoolOptions()
+        PgConnectOptions connectOptions = new PgConnectOptions()
                 .setPort(15432)
                 .setHost("localhost")
                 .setDatabase("rdc")
                 .setUser("rdc")
-                .setPassword("rdc")
+                .setPassword("rdc");
+
+        PoolOptions poolOptions = new PoolOptions()
                 .setMaxSize(5);
 
-        // Create the client pool
-        PgPool client = PgPool.pool(pgPoolOptions);
+        PgPool client = PgPool.pool(connectOptions, poolOptions);
 
         userRepository = new UserRepository(client);
         roleRepository = new RoleRepository(client);
@@ -44,16 +58,22 @@ public class Application {
 
         Routing routing = routingBuilder
                 .get("/hello", (req, res) -> res.send("Hello World!"))
-                .register("/role", new RoleController(roleRepository))
+                .register("/role", new RoleService(roleRepository))
+                .register("/user", new UserService(userRepository))
+                .register("/access", new AccessService(userRepository, roleRepository))
                 .build();
 
         Config config = Config.builder()
                 .sources(classpath("application.yaml"))
                 .build();
 
-        ServerConfiguration configuration = ServerConfiguration.create(config);
+        ServerConfiguration configuration = ServerConfiguration.builder(config).build();
 
-        WebServer webServer = WebServer.create(configuration, routing);
+        try {
+            webServer = WebServer.create(configuration, routing).start().toCompletableFuture().get(10, TimeUnit.SECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public UserRepository getUserRepository() {
@@ -62,5 +82,9 @@ public class Application {
 
     public RoleRepository getRoleRepository() {
         return roleRepository;
+    }
+
+    public WebServer getWebServer() {
+        return webServer;
     }
 }
