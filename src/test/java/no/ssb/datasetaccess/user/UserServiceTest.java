@@ -29,13 +29,13 @@ class UserServiceTest {
 
     @BeforeEach
     void clearUserRepository() throws InterruptedException, ExecutionException, TimeoutException {
-        server.getApplication().getUserRepository().deleteAllUsers().get(3, TimeUnit.SECONDS);
+        server.get(UserRepository.class).deleteAllUsers().get(3, TimeUnit.SECONDS);
     }
 
     User createUser(String userId, Set<String> roles) {
         try {
             User user = new User(userId, roles);
-            server.getApplication().getUserRepository().createUser(user).get(3, TimeUnit.SECONDS);
+            server.get(UserRepository.class).createUser(user).get(3, TimeUnit.SECONDS);
             return user;
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             throw new RuntimeException(e);
@@ -43,7 +43,7 @@ class UserServiceTest {
     }
 
     User getUser(String userId) {
-        return server.getApplication().getUserRepository().getUser(userId).join();
+        return server.get(UserRepository.class).getUser(userId).join();
     }
 
     @Test

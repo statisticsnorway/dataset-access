@@ -1,8 +1,13 @@
-web:
-  debug: true
-  page-size: 20
-  ratio: 1.3
-
 webserver:
   port: 8080
-  bind-address: "0.0.0.0"
+  host: "0.0.0.0"
+
+pgpool:
+  connect-options:
+    port: 15432
+    host: localhost
+    database: rdc
+    user: rdc
+    password: rdc
+  pool-options:
+    max-size: 5

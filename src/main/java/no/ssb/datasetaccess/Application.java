@@ -3,8 +3,6 @@ package no.ssb.datasetaccess;
 
 import io.helidon.config.Config;
 import io.helidon.media.jackson.server.JacksonSupport;
-import io.helidon.webserver.Routing;
-import io.helidon.webserver.ServerConfiguration;
 import io.helidon.webserver.WebServer;
 import io.vertx.pgclient.PgConnectOptions;
 import io.vertx.pgclient.PgPool;
@@ -14,76 +12,60 @@ import no.ssb.datasetaccess.role.RoleRepository;
 import no.ssb.datasetaccess.role.RoleService;
 import no.ssb.datasetaccess.user.UserRepository;
 import no.ssb.datasetaccess.user.UserService;
+import no.ssb.helidon.HelidonApplication;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
 import static io.helidon.config.ConfigSources.classpath;
 
-public class Application {
+public class Application extends HelidonApplication<Application> {
 
     private static final Logger LOG = LoggerFactory.getLogger(Application.class);
 
     public static void main(String[] args) {
         Application application = new Application();
-        LOG.info("Webserver running at port: {}", application.webServer.port());
+        LOG.info("Webserver running at port: {}", application.registry().get(WebServer.class).port());
     }
 
-    final UserRepository userRepository;
-    final RoleRepository roleRepository;
-    final WebServer webServer;
+    protected Config loadConfig() {
+        return Config.builder()
+                .sources(classpath("application.yaml"))
+                .build();
+    }
 
-    public Application() {
-        PgConnectOptions connectOptions = new PgConnectOptions()
-                .setPort(15432)
-                .setHost("localhost")
-                .setDatabase("rdc")
-                .setUser("rdc")
-                .setPassword("rdc");
+    @Override
+    protected void init(Config config) {
 
-        PoolOptions poolOptions = new PoolOptions()
-                .setMaxSize(5);
+        // repositories
+        PgPool pgPool = initPgPool(config.get("pgpool"));
+        UserRepository userRepository = new UserRepository(pgPool);
+        RoleRepository roleRepository = new RoleRepository(pgPool);
 
-        PgPool client = PgPool.pool(connectOptions, poolOptions);
+        add(PgPool.class, pgPool);
+        add(UserRepository.class, userRepository);
+        add(RoleRepository.class, roleRepository);
 
-        userRepository = new UserRepository(client);
-        roleRepository = new RoleRepository(client);
-
-        final JacksonSupport jacksonSupport = JacksonSupport.create();
-        final Routing.Builder routingBuilder = Routing.builder();
-        routingBuilder.register(jacksonSupport);
-
-        Routing routing = routingBuilder
+        // routing
+        routing().register(JacksonSupport.create())
                 .register("/role", new RoleService(roleRepository))
                 .register("/user", new UserService(userRepository))
                 .register("/access", new AccessService(userRepository, roleRepository))
-                .build();
-
-        Config config = Config.builder()
-                .sources(classpath("application.yaml"))
-                .build();
-
-        ServerConfiguration configuration = ServerConfiguration.builder(config).build();
-
-        try {
-            webServer = WebServer.create(configuration, routing).start().toCompletableFuture().get(10, TimeUnit.SECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            throw new RuntimeException(e);
-        }
+        ;
     }
 
-    public UserRepository getUserRepository() {
-        return userRepository;
-    }
+    private PgPool initPgPool(Config config) {
+        Config connectConfig = config.get("connect-options");
+        PgConnectOptions connectOptions = new PgConnectOptions()
+                .setPort(connectConfig.get("port").asInt().orElse(15432))
+                .setHost(connectConfig.get("host").asString().orElse("localhost"))
+                .setDatabase(connectConfig.get("database").asString().orElse("rdc"))
+                .setUser(connectConfig.get("user").asString().orElse("rdc"))
+                .setPassword(connectConfig.get("password").asString().orElse("rdc"));
 
-    public RoleRepository getRoleRepository() {
-        return roleRepository;
-    }
+        Config poolConfig = config.get("pool-options");
+        PoolOptions poolOptions = new PoolOptions()
+                .setMaxSize(poolConfig.get("max-size").asInt().orElse(5));
 
-    public WebServer getWebServer() {
-        return webServer;
+        return PgPool.pool(connectOptions, poolOptions);
     }
 }

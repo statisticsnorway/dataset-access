@@ -31,13 +31,13 @@ class RoleServiceTest {
 
     @BeforeEach
     void clearRoleRepository() throws InterruptedException, ExecutionException, TimeoutException {
-        server.getApplication().getRoleRepository().deleteAllRoles().get(3, TimeUnit.SECONDS);
+        server.get(RoleRepository.class).deleteAllRoles().get(3, TimeUnit.SECONDS);
     }
 
     Role createRole(String roleId, Set<Privilege> privileges, Set<String> namespacePrefixes, Valuation maxValuation, Set<DatasetState> states) {
         Role role = new Role(roleId, privileges, new TreeSet<>(namespacePrefixes), maxValuation, states);
         try {
-            server.getApplication().getRoleRepository().createRole(role).get(3, TimeUnit.SECONDS);
+            server.get(RoleRepository.class).createRole(role).get(3, TimeUnit.SECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             throw new RuntimeException(e);
         }
@@ -45,7 +45,7 @@ class RoleServiceTest {
     }
 
     Role readRole(String roleId) {
-        return server.getApplication().getRoleRepository().getRole(roleId).join();
+        return server.get(RoleRepository.class).getRole(roleId).join();
     }
 
     @Test
