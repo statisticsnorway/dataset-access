@@ -24,7 +24,13 @@ public class UserService implements Service {
         return (req, res) -> {
             String userId = req.path().param("userId");
             repository.getUser(userId)
-                    .thenAccept(res::send);
+                    .thenAccept(user -> {
+                        if (user == null) {
+                            res.status(Http.Status.NOT_FOUND_404).send();
+                        } else {
+                            res.send(user);
+                        }
+                    });
         };
     }
 
@@ -35,7 +41,10 @@ public class UserService implements Service {
                 res.status(Http.Status.BAD_REQUEST_400).send("userId in path must match that in body");
             }
             repository.createUser(user)
-                    .thenRun(() -> res.status(Http.Status.CREATED_201).send())
+                    .thenRun(() -> {
+                        res.headers().add("Location", "/user/" + userId);
+                        res.status(Http.Status.CREATED_201).send();
+                    })
                     .exceptionally(t -> {
                         res.status(Http.Status.INTERNAL_SERVER_ERROR_500).send(t.getMessage());
                         return null;

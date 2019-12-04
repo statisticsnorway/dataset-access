@@ -2,6 +2,7 @@ package no.ssb.datasetaccess.role;
 
 import no.ssb.datasetaccess.dataset.DatasetState;
 import no.ssb.datasetaccess.dataset.Valuation;
+import no.ssb.datasetaccess.testing.ResponseHelper;
 import no.ssb.datasetaccess.testing.TestClient;
 import no.ssb.datasetaccess.testing.TestServer;
 import org.junit.jupiter.api.AfterAll;
@@ -9,7 +10,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutionException;
@@ -17,6 +17,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class RoleServiceTest {
 
@@ -54,7 +55,7 @@ class RoleServiceTest {
     }
 
     @Test
-    void thatGetRoleWorks() throws IOException, InterruptedException {
+    void thatGetRoleWorks() {
         Role expectedRole = createRole("writer", Set.of(Privilege.CREATE, Privilege.UPDATE), Set.of("/ns/test"), Valuation.INTERNAL, Set.of(DatasetState.RAW, DatasetState.INPUT));
         String body = client.get("/role/writer").expect200Ok().body();
         System.out.printf("%s%n", body);
@@ -64,38 +65,33 @@ class RoleServiceTest {
 
     @Test
     void thatGetNonExistentRoleRespondsWith404NotFound() {
-        //HttpResponse<Role> response = httpClient.exchange(HttpRequest.GET("/role/non-existent"), Role.class)
-        //        .onErrorReturn(HttpClientTestUtils::toHttpResponse).blockingFirst();
-        //assertThat((CharSequence) response.getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
+        client.get("/role/non-existent").expect404NotFound();
     }
 
     @Test
     void thatPutRoleWorks() {
-        //Role expectedRole = new Role("reader", Set.of(Privilege.READ), new TreeSet<>(Set.of("/ns/1")), Valuation.SHIELDED, Set.of(DatasetState.RAW, DatasetState.INPUT, DatasetState.PROCESSED));
-        //HttpResponse<String> response = httpClient.exchange(HttpRequest.PUT("/role/reader", expectedRole), String.class).blockingFirst();
-        //assertThat((CharSequence) response.getStatus()).isEqualTo(HttpStatus.CREATED);
-        //assertThat(response.getHeaders().getFirst("Location").orElseThrow()).isEqualTo("/role/reader");
-        //Role role = readRole("reader");
-        //assertThat(role).isEqualTo(expectedRole);
+        Role expectedRole = new Role("reader", Set.of(Privilege.READ), new TreeSet<>(Set.of("/ns/1")), Valuation.SHIELDED, Set.of(DatasetState.RAW, DatasetState.INPUT, DatasetState.PROCESSED));
+        ResponseHelper<String> helper = client.put("/role/reader", expectedRole).expect201Created();
+        assertEquals("/role/reader", helper.response().headers().firstValue("Location").orElseThrow());
+        Role role = readRole("reader");
+        assertEquals(expectedRole, role);
     }
 
     @Test
     void thatCreateUpsertPutRoleWorks() {
-        //HttpResponse<String> upsert1 = httpClient.exchange(HttpRequest.PUT("/role/upsert_role", new Role("upsert_role", Set.of(Privilege.CREATE, Privilege.READ), new TreeSet<>(Set.of("/a/b/c")), Valuation.INTERNAL, Set.of(DatasetState.RAW, DatasetState.INPUT))), String.class).blockingFirst();
-        //assertThat((CharSequence) upsert1.getStatus()).isEqualTo(HttpStatus.CREATED);
-        //Role role1 = readRole("upsert_role");
-        //assertThat(role1.privileges).isEqualTo(Set.of(Privilege.CREATE, Privilege.READ));
-        //HttpResponse<String> upsert2 = httpClient.exchange(HttpRequest.PUT("/role/upsert_role", new Role("upsert_role", Set.of(Privilege.UPDATE, Privilege.DELETE), new TreeSet<>(Set.of("/d/e")), Valuation.SHIELDED, Set.of(DatasetState.PROCESSED))), String.class).blockingFirst();
-        //assertThat((CharSequence) upsert2.getStatus()).isEqualTo(HttpStatus.CREATED);
-        //Role role2 = readRole("upsert_role");
-        //assertThat(role2.privileges).isEqualTo(Set.of(Privilege.UPDATE, Privilege.DELETE));
+        Role upsert_role = new Role("upsert_role", Set.of(Privilege.CREATE, Privilege.READ), new TreeSet<>(Set.of("/a/b/c")), Valuation.INTERNAL, Set.of(DatasetState.RAW, DatasetState.INPUT));
+        client.put("/role/upsert_role", upsert_role).expect201Created();
+        Role role1 = readRole("upsert_role");
+        assertEquals(Set.of(Privilege.CREATE, Privilege.READ), role1.privileges);
+        client.put("/role/upsert_role", new Role("upsert_role", Set.of(Privilege.UPDATE, Privilege.DELETE), new TreeSet<>(Set.of("/d/e")), Valuation.SHIELDED, Set.of(DatasetState.PROCESSED))).expect201Created();
+        Role role2 = readRole("upsert_role");
+        assertEquals(Set.of(Privilege.UPDATE, Privilege.DELETE), role2.privileges);
     }
 
     @Test
     void thatDeleteRoleWorks() {
-        //createRole("role_to_be_deleted", Set.of(Privilege.CREATE), Set.of("/universe"), Valuation.SENSITIVE, Set.of(DatasetState.INPUT));
-        //HttpResponse<String> response = httpClient.exchange(HttpRequest.DELETE("/role/role_to_be_deleted"), String.class).blockingFirst();
-        //assertThat((CharSequence) response.getStatus()).isEqualTo(HttpStatus.OK);
-        //assertThat(readRole("role_to_be_deleted")).isNull();
+        createRole("role_to_be_deleted", Set.of(Privilege.CREATE), Set.of("/universe"), Valuation.SENSITIVE, Set.of(DatasetState.INPUT));
+        client.delete("/role/role_to_be_deleted").expect200Ok();
+        assertNull(readRole("role_to_be_deleted"));
     }
 }

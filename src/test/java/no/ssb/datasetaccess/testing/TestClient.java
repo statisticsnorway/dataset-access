@@ -1,5 +1,6 @@
 package no.ssb.datasetaccess.testing;
 
+import no.ssb.datasetaccess.JacksonUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,6 +91,10 @@ public final class TestClient {
 
     public ResponseHelper<String> put(String uri) {
         return put(uri, HttpRequest.BodyPublishers.noBody(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    public <T> ResponseHelper<String> put(String uri, T pojo) {
+        return put(uri, HttpRequest.BodyPublishers.ofString(JacksonUtils.toString(pojo), StandardCharsets.UTF_8), HttpResponse.BodyHandlers.ofString());
     }
 
     public ResponseHelper<String> put(String uri, String body) {

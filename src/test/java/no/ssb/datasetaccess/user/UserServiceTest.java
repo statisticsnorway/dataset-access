@@ -1,101 +1,93 @@
 package no.ssb.datasetaccess.user;
 
-import no.ssb.datasetaccess.Application;
+import no.ssb.datasetaccess.JacksonUtils;
+import no.ssb.datasetaccess.testing.ResponseHelper;
+import no.ssb.datasetaccess.testing.TestClient;
+import no.ssb.datasetaccess.testing.TestServer;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.net.http.HttpClient;
-import java.time.Duration;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+
 class UserServiceTest {
 
-    static Application application;
-
-    static HttpClient httpClient = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(3))
-            .build();
+    static TestServer server;
+    static TestClient client;
 
     @BeforeAll
     static void setupApplication() {
-        application = new Application();
+        server = new TestServer();
+        client = server.client();
     }
 
     @AfterAll
     static void stopApplication() {
-        application.getWebServer().shutdown();
+        server.shutdown();
     }
 
     @BeforeEach
     void clearUserRepository() throws InterruptedException, ExecutionException, TimeoutException {
-        application.getUserRepository().deleteAllUsers().get(3, TimeUnit.SECONDS);
+        server.getApplication().getUserRepository().deleteAllUsers().get(3, TimeUnit.SECONDS);
     }
 
-    void createUser(User user) {
+    User createUser(String userId, Set<String> roles) {
         try {
-            application.getUserRepository().createUser(user).get(3, TimeUnit.SECONDS);
+            User user = new User(userId, roles);
+            server.getApplication().getUserRepository().createUser(user).get(3, TimeUnit.SECONDS);
+            return user;
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             throw new RuntimeException(e);
         }
     }
 
     User getUser(String userId) {
-        return application.getUserRepository().getUser(userId).join();
+        return server.getApplication().getUserRepository().getUser(userId).join();
     }
 
     @Test
     void thatGetUserWorks() {
-//        final User expected = new User("john", Set.of(new Role("reader", Set.of(Privilege.READ), new TreeSet<>(Set.of("/a/b/c")), Valuation.INTERNAL, Set.of(DatasetState.PROCESSED))));
-//        createUser(expected);
-//        HttpResponse<User> response = httpClient.exchange(HttpRequest.GET("/user/john"), User.class).blockingFirst();
-//        assertThat((CharSequence) response.getStatus()).isEqualTo(HttpStatus.OK);
-//        final User actual = response.getBody().orElseThrow();
-//        assertThat(actual).isEqualToComparingFieldByField(expected);
+        User expected = createUser("john", Set.of("reader"));
+        User actual = JacksonUtils.toPojo(client.get("/user/john").expect200Ok().body(), User.class);
+        assertEquals(expected, actual);
     }
 
     @Test
     void thatGetOnNonExistingUserReturns404() {
-//        HttpResponse<User> response = httpClient.exchange(HttpRequest.GET("/user/john"), User.class)
-//                .onErrorReturn(HttpClientTestUtils::toHttpResponse)
-//                .blockingFirst();
-//        assertThat((CharSequence) response.getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
+        client.get("/user/not-a-user").expect404NotFound();
     }
 
     @Test
     void thatPutWorks() {
-//        final User userToCreate = new User("john", Set.of(new Role("reader", Set.of(Privilege.READ), new TreeSet<>(Set.of("/a/b/c")), Valuation.INTERNAL, Set.of(DatasetState.PROCESSED))));
-//        HttpResponse<String> response = httpClient.exchange(HttpRequest.PUT("/user/john", userToCreate), String.class).blockingFirst();
-//        assertThat((CharSequence) response.getStatus()).isEqualTo(HttpStatus.CREATED);
-//        assertThat(response.getHeaders().get("Location")).isEqualTo("/user/john");
-//
-//        final User createdUser = getUser(userToCreate.getUserId());
-//        assertThat(createdUser).isEqualToComparingFieldByField(userToCreate);
+        User expected = new User("john", Set.of("reader"));
+        ResponseHelper<String> helper = client.put("/user/john", expected).expect201Created();
+        assertEquals("/user/john", helper.response().headers().firstValue("Location").orElseThrow());
+        User user = getUser("john");
+        assertEquals(expected, user);
     }
 
     @Test
     void thatUpsertWorks() {
-//        final User initialUser = new User("john", Set.of(new Role("reader", Set.of(Privilege.READ), new TreeSet<>(Set.of("/a/b/c")), Valuation.INTERNAL, Set.of(DatasetState.RAW))));
-//        createUser(initialUser);
-//
-//        final User upsertUser = new User("john", Set.of(new Role("reader", Set.of(Privilege.READ, Privilege.DELETE), new TreeSet<>(Set.of("/a/b/c", "x/y/z")), Valuation.OPEN, Set.of(DatasetState.RAW, DatasetState.INPUT))));
-//        HttpResponse<String> response = httpClient.exchange(HttpRequest.PUT("/user/john", upsertUser), String.class).blockingFirst();
-//        assertThat((CharSequence) response.getStatus()).isEqualTo(HttpStatus.CREATED);
-//        assertThat(response.getHeaders().get("Location")).isEqualTo("/user/john");
-//
-//        final User actual = getUser(upsertUser.getUserId());
-//        assertThat(actual).isEqualToComparingFieldByField(upsertUser);
+        User upsert_user = new User("upsert_john", Set.of("reader"));
+        client.put("/user/upsert_john", upsert_user).expect201Created();
+        User user1 = getUser("upsert_john");
+        assertEquals(Set.of("reader"), user1.getRoles());
+        client.put("/user/upsert_john", new User("upsert_john", Set.of("reader", "writer"))).expect201Created();
+        User user2 = getUser("upsert_john");
+        assertEquals(Set.of("reader", "writer"), user2.getRoles());
     }
 
     @Test
     void thatDeleteUserWorks() {
-//        final User userToDelete = new User("john", Set.of(new Role("reader", Set.of(Privilege.READ), new TreeSet<>(Set.of("/a/b/c")), Valuation.OPEN, Set.of(DatasetState.OTHER))));
-//        createUser(userToDelete);
-//        HttpResponse<String> response = httpClient.exchange(HttpRequest.DELETE("/user/john"), String.class).blockingFirst();
-//        assertThat((CharSequence) response.getStatus()).isEqualTo(HttpStatus.OK);
-//        assertThat(getUser(userToDelete.getUserId())).isNull();
+        createUser("user_to_be_deleted", Set.of("some_role", "any_role"));
+        client.delete("/user/user_to_be_deleted").expect200Ok();
+        assertNull(getUser("user_to_be_deleted"));
     }
 }

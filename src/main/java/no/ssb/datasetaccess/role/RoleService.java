@@ -25,7 +25,13 @@ public class RoleService implements Service {
         return (req, res) -> {
             String roleId = req.path().param("roleId");
             repository.getRole(roleId)
-                    .thenAccept(res::send);
+                    .thenAccept(role -> {
+                        if (role == null) {
+                            res.status(Http.Status.NOT_FOUND_404).send();
+                        } else {
+                            res.send(role);
+                        }
+                    });
         };
     }
 
@@ -36,7 +42,10 @@ public class RoleService implements Service {
                 res.status(Http.Status.BAD_REQUEST_400).send("roleId in path must match that in body");
             }
             repository.createRole(role)
-                    .thenRun(() -> res.status(Http.Status.CREATED_201).send())
+                    .thenRun(() -> {
+                        res.headers().add("Location", "/role/" + roleId);
+                        res.status(Http.Status.CREATED_201).send();
+                    })
                     .exceptionally(t -> {
                         res.status(Http.Status.INTERNAL_SERVER_ERROR_500).send(t.getMessage());
                         return null;
