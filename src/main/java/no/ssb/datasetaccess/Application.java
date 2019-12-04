@@ -57,7 +57,6 @@ public class Application {
         routingBuilder.register(jacksonSupport);
 
         Routing routing = routingBuilder
-                .get("/hello", (req, res) -> res.send("Hello World!"))
                 .register("/role", new RoleService(roleRepository))
                 .register("/user", new UserService(userRepository))
                 .register("/access", new AccessService(userRepository, roleRepository))
