@@ -30,6 +30,16 @@
       }
     }
   },
+  "flyway": {
+    "datasources": {
+      "default": {
+        "url": "jdbc:postgresql://${postgres.reactive.client.host}:${postgres.reactive.client.port}/${postgres.reactive.client.database}",
+        "user": "${postgres.reactive.client.user}",
+        "password": "${postgres.reactive.client.password}",
+        "locations": "filesystem:./databasemigrations"
+      }
+    }
+  },
   "tracing": {
     "jaeger": {
       "enabled": true,
