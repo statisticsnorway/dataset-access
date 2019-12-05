@@ -1,4 +1,4 @@
-package no.ssb.datasetaccess.testing;
+package no.ssb.datasetaccess;
 
 import java.net.HttpURLConnection;
 import java.net.http.HttpResponse;

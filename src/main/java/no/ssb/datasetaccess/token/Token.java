@@ -1,4 +1,4 @@
-package no.ssb.datasetaccess;
+package no.ssb.datasetaccess.token;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;

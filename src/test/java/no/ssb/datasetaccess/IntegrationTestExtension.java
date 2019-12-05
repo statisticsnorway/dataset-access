@@ -1,5 +1,7 @@
-package no.ssb.datasetaccess.testing;
+package no.ssb.datasetaccess;
 
+import io.helidon.config.Config;
+import io.helidon.webserver.WebServer;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
@@ -8,15 +10,21 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import javax.inject.Inject;
 import java.lang.reflect.Field;
 
+import static io.helidon.config.ConfigSources.classpath;
+
 public class IntegrationTestExtension implements BeforeEachCallback, BeforeAllCallback, AfterAllCallback {
 
-    TestServer server;
+    Application application;
     TestClient client;
 
     @Override
     public void beforeAll(ExtensionContext context) throws Exception {
-        server = new TestServer();
-        client = server.client();
+        application = new Application(Config.builder()
+                .sources(classpath("application.yaml"))
+                .sources(classpath("application-test.yaml").optional())
+                .build());
+        application.start().toCompletableFuture().join();
+        client = TestClient.newClient("localhost", application.get(WebServer.class).port());
     }
 
     @Override
@@ -24,12 +32,12 @@ public class IntegrationTestExtension implements BeforeEachCallback, BeforeAllCa
         Object test = context.getRequiredTestInstance();
         Field[] fields = test.getClass().getDeclaredFields();
         for (Field field : fields) {
-            // test server
-            if (field.isAnnotationPresent(Inject.class) && TestServer.class.isAssignableFrom(field.getType())) {
+            // application
+            if (field.isAnnotationPresent(Inject.class) && Application.class.isAssignableFrom(field.getType())) {
                 try {
                     field.setAccessible(true);
                     if (field.get(test) == null) {
-                        field.set(test, server);
+                        field.set(test, application);
                     }
                 } catch (IllegalAccessException e) {
                     throw new RuntimeException(e);
@@ -51,6 +59,6 @@ public class IntegrationTestExtension implements BeforeEachCallback, BeforeAllCa
 
     @Override
     public void afterAll(ExtensionContext context) throws Exception {
-        server.shutdown();
+        application.stop();
     }
 }

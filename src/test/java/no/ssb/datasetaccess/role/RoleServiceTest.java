@@ -1,11 +1,11 @@
 package no.ssb.datasetaccess.role;
 
+import no.ssb.datasetaccess.Application;
+import no.ssb.datasetaccess.IntegrationTestExtension;
+import no.ssb.datasetaccess.ResponseHelper;
+import no.ssb.datasetaccess.TestClient;
 import no.ssb.datasetaccess.dataset.DatasetState;
 import no.ssb.datasetaccess.dataset.Valuation;
-import no.ssb.datasetaccess.testing.IntegrationTestExtension;
-import no.ssb.datasetaccess.testing.ResponseHelper;
-import no.ssb.datasetaccess.testing.TestClient;
-import no.ssb.datasetaccess.testing.TestServer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,20 +24,20 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 class RoleServiceTest {
 
     @Inject
-    TestServer server;
+    Application application;
 
     @Inject
     TestClient client;
 
     @BeforeEach
     void clearRoleRepository() throws InterruptedException, ExecutionException, TimeoutException {
-        server.get(RoleRepository.class).deleteAllRoles().get(3, TimeUnit.SECONDS);
+        application.get(RoleRepository.class).deleteAllRoles().get(3, TimeUnit.SECONDS);
     }
 
     Role createRole(String roleId, Set<Privilege> privileges, Set<String> namespacePrefixes, Valuation maxValuation, Set<DatasetState> states) {
         Role role = new Role(roleId, privileges, new TreeSet<>(namespacePrefixes), maxValuation, states);
         try {
-            server.get(RoleRepository.class).createRole(role).get(3, TimeUnit.SECONDS);
+            application.get(RoleRepository.class).createRole(role).get(3, TimeUnit.SECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             throw new RuntimeException(e);
         }
@@ -45,7 +45,7 @@ class RoleServiceTest {
     }
 
     Role readRole(String roleId) {
-        return server.get(RoleRepository.class).getRole(roleId).join();
+        return application.get(RoleRepository.class).getRole(roleId).join();
     }
 
     @Test

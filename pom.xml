@@ -168,7 +168,7 @@
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>${maven-surefire-plugin.version}</version>
                     <configuration>
-                        <argLine>--add-opens no.ssb.datasetaccess/no.ssb.datasetaccess=ALL-UNNAMED --add-opens no.ssb.datasetaccess/no.ssb.datasetaccess.access=ALL-UNNAMED --add-opens no.ssb.datasetaccess/no.ssb.datasetaccess.dataset=ALL-UNNAMED --add-opens no.ssb.datasetaccess/no.ssb.datasetaccess.role=ALL-UNNAMED --add-opens no.ssb.datasetaccess/no.ssb.datasetaccess.user=ALL-UNNAMED</argLine>
+                        <argLine>--add-opens no.ssb.datasetaccess/no.ssb.datasetaccess=ALL-UNNAMED --add-opens no.ssb.datasetaccess/no.ssb.datasetaccess.access=ALL-UNNAMED --add-opens no.ssb.datasetaccess/no.ssb.datasetaccess.dataset=ALL-UNNAMED --add-opens no.ssb.datasetaccess/no.ssb.datasetaccess.role=ALL-UNNAMED --add-opens no.ssb.datasetaccess/no.ssb.datasetaccess.user=ALL-UNNAMED --add-opens no.ssb.datasetaccess/no.ssb.datasetaccess.token=ALL-UNNAMED</argLine>
                     </configuration>
                 </plugin>
                 <plugin>

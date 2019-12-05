@@ -18,7 +18,6 @@ module no.ssb.datasetaccess {
      * Not so well documented requirements are declared here to force fail-fast with proper error message if
      * missing from jvm.
      */
-    //requires java.desktop; // required by snakeyaml for bean introspection
     //requires jdk.management.agent; // required to run application with the com.sun.management.jmxremote property
     requires jdk.unsupported; // required by netty to allow reliable low-level API access to direct-buffers
     requires jdk.naming.dns; // required by netty dns libraries used by reactive postgres
@@ -28,4 +27,5 @@ module no.ssb.datasetaccess {
     opens no.ssb.datasetaccess.dataset to com.fasterxml.jackson.databind;
     opens no.ssb.datasetaccess.role to com.fasterxml.jackson.databind;
     opens no.ssb.datasetaccess.user to com.fasterxml.jackson.databind;
+    opens no.ssb.datasetaccess.token to com.fasterxml.jackson.databind;
 }

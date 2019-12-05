@@ -1,6 +1,5 @@
-package no.ssb.datasetaccess.testing;
+package no.ssb.datasetaccess;
 
-import no.ssb.datasetaccess.JacksonUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

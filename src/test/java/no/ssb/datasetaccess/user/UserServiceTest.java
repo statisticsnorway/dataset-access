@@ -1,10 +1,10 @@
 package no.ssb.datasetaccess.user;
 
+import no.ssb.datasetaccess.Application;
+import no.ssb.datasetaccess.IntegrationTestExtension;
 import no.ssb.datasetaccess.JacksonUtils;
-import no.ssb.datasetaccess.testing.IntegrationTestExtension;
-import no.ssb.datasetaccess.testing.ResponseHelper;
-import no.ssb.datasetaccess.testing.TestClient;
-import no.ssb.datasetaccess.testing.TestServer;
+import no.ssb.datasetaccess.ResponseHelper;
+import no.ssb.datasetaccess.TestClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,20 +22,20 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 class UserServiceTest {
 
     @Inject
-    TestServer server;
+    Application application;
 
     @Inject
     TestClient client;
 
     @BeforeEach
     void clearUserRepository() throws InterruptedException, ExecutionException, TimeoutException {
-        server.get(UserRepository.class).deleteAllUsers().get(3, TimeUnit.SECONDS);
+        application.get(UserRepository.class).deleteAllUsers().get(3, TimeUnit.SECONDS);
     }
 
     User createUser(String userId, Set<String> roles) {
         try {
             User user = new User(userId, roles);
-            server.get(UserRepository.class).createUser(user).get(3, TimeUnit.SECONDS);
+            application.get(UserRepository.class).createUser(user).get(3, TimeUnit.SECONDS);
             return user;
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             throw new RuntimeException(e);
@@ -43,7 +43,7 @@ class UserServiceTest {
     }
 
     User getUser(String userId) {
-        return server.get(UserRepository.class).getUser(userId).join();
+        return application.get(UserRepository.class).getUser(userId).join();
     }
 
     @Test
