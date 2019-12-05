@@ -9,6 +9,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 
 import javax.inject.Inject;
 import java.lang.reflect.Field;
+import java.util.concurrent.TimeUnit;
 
 import static io.helidon.config.ConfigSources.classpath;
 
@@ -23,7 +24,7 @@ public class IntegrationTestExtension implements BeforeEachCallback, BeforeAllCa
                 .sources(classpath("application.yaml"))
                 .sources(classpath("application-test.yaml").optional())
                 .build());
-        application.start().toCompletableFuture().join();
+        application.start().toCompletableFuture().get(5, TimeUnit.SECONDS);
         client = TestClient.newClient("localhost", application.get(WebServer.class).port());
     }
 
