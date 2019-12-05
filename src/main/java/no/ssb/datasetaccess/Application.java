@@ -80,7 +80,6 @@ public class Application {
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             throw new RuntimeException(e);
         }
-        webServer.start();
     }
 
     private void migrateDatabaseSchema(Config flywayConfig) {
