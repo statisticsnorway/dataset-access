@@ -14,6 +14,7 @@ import no.ssb.datasetaccess.role.RoleRepository;
 import no.ssb.datasetaccess.role.RoleService;
 import no.ssb.datasetaccess.user.UserRepository;
 import no.ssb.datasetaccess.user.UserService;
+import org.flywaydb.core.Flyway;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,6 +52,8 @@ public class Application {
     public Application(Config config) {
         put(Config.class, config);
 
+        migrateDatabaseSchema(config.get("flyway"));
+
         // repositories
         PgPool pgPool = initPgPool(config.get("pgpool"));
         UserRepository userRepository = new UserRepository(pgPool);
@@ -78,6 +81,17 @@ public class Application {
             throw new RuntimeException(e);
         }
         webServer.start();
+    }
+
+    private void migrateDatabaseSchema(Config flywayConfig) {
+        Flyway flyway = Flyway.configure()
+                .dataSource(
+                        flywayConfig.get("url").asString().orElse("dbc:postgresql://localhost:15432/rdc"),
+                        flywayConfig.get("user").asString().orElse("rdc"),
+                        flywayConfig.get("password").asString().orElse("rdc")
+                )
+                .load();
+        flyway.migrate();
     }
 
     private PgPool initPgPool(Config config) {

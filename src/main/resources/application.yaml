@@ -11,3 +11,8 @@ pgpool:
     password: rdc
   pool-options:
     max-size: 5
+
+flyway:
+  url: jdbc:postgresql://localhost:15432/rdc
+  user: rdc
+  password: rdc

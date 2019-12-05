@@ -1,6 +1,5 @@
 module no.ssb.datasetaccess {
     requires org.slf4j;
-    requires logstash.logback.encoder;
     requires org.reactivestreams;
     requires com.fasterxml.jackson.databind;
     requires com.fasterxml.jackson.annotation;
@@ -13,6 +12,7 @@ module no.ssb.datasetaccess {
     requires io.helidon.media.jackson.server;
     requires java.net.http;
     requires io.helidon.common.reactive;
+    requires org.flywaydb.core;
 
     /*
      * Not so well documented requirements are declared here to force fail-fast with proper error message if
@@ -28,4 +28,6 @@ module no.ssb.datasetaccess {
     opens no.ssb.datasetaccess.role to com.fasterxml.jackson.databind;
     opens no.ssb.datasetaccess.user to com.fasterxml.jackson.databind;
     opens no.ssb.datasetaccess.token to com.fasterxml.jackson.databind;
+
+    opens db.migration;
 }

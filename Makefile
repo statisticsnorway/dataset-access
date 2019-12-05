@@ -9,7 +9,7 @@ start: ## Run the application inside a docker container
 
 .PHONY: build
 build: ## Build the application with maven
-	./mvnw -B clean install dependency:copy-dependencies -DincludeScope=runtime -DskipTests
+	./mvnw -B clean install dependency:copy-dependencies -DincludeScope=runtime
 
 .PHONY: build-until-success
 build-until-success: ## Run build until it succedes, or the number of attempts excede 3 - whatever comes first
