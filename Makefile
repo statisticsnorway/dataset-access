@@ -1,13 +1,27 @@
+SHELL:=/usr/bin/env bash
+
 .PHONY: default
 default: | help
 
 .PHONY: start
-start: | build ## Run the application inside a docker container
-	docker-compose up -d --force-recreate
+start: ## Run the application inside a docker container
+	docker-compose up -d --build
 
 .PHONY: build
 build: ## Build the application with maven
 	./mvnw -B clean install dependency:copy-dependencies -DincludeScope=runtime -DskipTests
+
+.PHONY: build-until-success
+build-until-success: ## Run build until it succedes, or the number of attempts excede 3 - whatever comes first
+	ATTEMPTS=0; \
+	./mvnw -B install dependency:copy-dependencies -DincludeScope=runtime -DskipTests; \
+	until [ "$$?" -ne 1 ] || [ "$$ATTEMPTS" -ge 2 ]; do \
+	  ((ATTEMPTS++)); \
+	  sleep 1; \
+	  printf "Failed attempts: %s\n" "$$ATTEMPTS"; \
+	  printf "Retrying...\n"; \
+	  ./mvnw -B install dependency:copy-dependencies -DincludeScope=runtime -DskipTests; \
+	done
 
 .PHONY: stop
 stop: ## Stop the application
