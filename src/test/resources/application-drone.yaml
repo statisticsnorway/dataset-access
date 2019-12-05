@@ -1,0 +1,18 @@
+webserver:
+  port: -1
+  host: "0.0.0.0"
+
+pgpool:
+  connect-options:
+    port: 5432
+    host: postgres
+    database: rdc
+    user: rdc
+    password: rdc
+  pool-options:
+    max-size: 5
+
+flyway:
+  url: jdbc:postgresql://postgres:5432/rdc
+  user: rdc
+  password: rdc
