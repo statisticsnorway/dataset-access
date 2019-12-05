@@ -29,5 +29,5 @@ module no.ssb.datasetaccess {
     opens no.ssb.datasetaccess.user to com.fasterxml.jackson.databind;
     opens no.ssb.datasetaccess.token to com.fasterxml.jackson.databind;
 
-    opens db.migration;
+    opens db.migration; // flyway needs this to read migration files
 }
