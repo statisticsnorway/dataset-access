@@ -1,8 +1,9 @@
 package no.ssb.datasetaccess.access;
 
 import io.helidon.common.http.Http;
-import io.helidon.webserver.Handler;
 import io.helidon.webserver.Routing;
+import io.helidon.webserver.ServerRequest;
+import io.helidon.webserver.ServerResponse;
 import io.helidon.webserver.Service;
 import no.ssb.datasetaccess.dataset.DatasetState;
 import no.ssb.datasetaccess.dataset.Valuation;
@@ -26,23 +27,21 @@ public class AccessService implements Service {
 
     @Override
     public void update(Routing.Rules rules) {
-        rules.get("/{userId}", getAccessHandler());
+        rules.get("/{userId}", this::doGet);
     }
 
-    private Handler getAccessHandler() {
-        return (req, res) -> {
-            String userId = req.path().param("userId");
-            Privilege privilege = Privilege.valueOf(req.queryParams().first("privilege").orElseThrow());
-            String namespace = req.queryParams().first("namespace").orElseThrow();
-            Valuation valuation = Valuation.valueOf(req.queryParams().first("valuation").orElseThrow());
-            DatasetState state = DatasetState.valueOf(req.queryParams().first("state").orElseThrow());
-            hasAccess(userId, privilege, namespace, valuation, state)
-                    .thenAccept(access -> res.status(access ? Http.Status.OK_200 : Http.Status.FORBIDDEN_403).send())
-                    .exceptionally(t -> {
-                        res.status(Http.Status.INTERNAL_SERVER_ERROR_500).send(t.getMessage());
-                        return null;
-                    });
-        };
+    private void doGet(ServerRequest req, ServerResponse res) {
+        String userId = req.path().param("userId");
+        Privilege privilege = Privilege.valueOf(req.queryParams().first("privilege").orElseThrow());
+        String namespace = req.queryParams().first("namespace").orElseThrow();
+        Valuation valuation = Valuation.valueOf(req.queryParams().first("valuation").orElseThrow());
+        DatasetState state = DatasetState.valueOf(req.queryParams().first("state").orElseThrow());
+        hasAccess(userId, privilege, namespace, valuation, state)
+                .thenAccept(access -> res.status(access ? Http.Status.OK_200 : Http.Status.FORBIDDEN_403).send())
+                .exceptionally(t -> {
+                    res.status(Http.Status.INTERNAL_SERVER_ERROR_500).send(t.getMessage());
+                    return null;
+                });
     }
 
     public CompletableFuture<Boolean> hasAccess(String userId, Privilege privilege, String namespace, Valuation valuation, DatasetState state) {
