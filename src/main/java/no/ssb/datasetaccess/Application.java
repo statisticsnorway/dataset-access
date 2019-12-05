@@ -2,6 +2,7 @@ package no.ssb.datasetaccess;
 
 
 import io.helidon.config.Config;
+import io.helidon.config.spi.ConfigSource;
 import io.helidon.media.jackson.server.JacksonSupport;
 import io.helidon.webserver.Routing;
 import io.helidon.webserver.ServerConfiguration;
@@ -18,14 +19,18 @@ import org.flywaydb.core.Flyway;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Supplier;
 
 import static io.helidon.config.ConfigSources.classpath;
+import static io.helidon.config.ConfigSources.file;
 
 public class Application {
 
@@ -33,9 +38,13 @@ public class Application {
 
     public static void main(String[] args) {
         long startTime = System.currentTimeMillis();
-        Application application = new Application(Config.builder()
-                .sources(classpath("application.yaml"))
-                .build());
+        List<Supplier<ConfigSource>> configSourceSupplierList = new LinkedList<>();
+        String overrideFile = System.getenv("HELIDON_CONFIG_FILE");
+        if (overrideFile != null) {
+            configSourceSupplierList.add(file(overrideFile).optional());
+        }
+        configSourceSupplierList.add(classpath("application.yaml"));
+        Application application = new Application(Config.builder().sources(configSourceSupplierList).build());
         application.start().thenAccept(webServer -> LOG.info("Webserver running at port: {}, started in {} ms", webServer.port(), System.currentTimeMillis() - startTime));
     }
 
@@ -85,7 +94,7 @@ public class Application {
     private void migrateDatabaseSchema(Config flywayConfig) {
         Flyway flyway = Flyway.configure()
                 .dataSource(
-                        flywayConfig.get("url").asString().orElse("dbc:postgresql://localhost:15432/rdc"),
+                        flywayConfig.get("url").asString().orElse("jdbc:postgresql://localhost:15432/rdc"),
                         flywayConfig.get("user").asString().orElse("rdc"),
                         flywayConfig.get("password").asString().orElse("rdc")
                 )
