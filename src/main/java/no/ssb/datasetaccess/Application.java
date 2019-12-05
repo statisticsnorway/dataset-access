@@ -38,22 +38,26 @@ public class Application {
         application.start().thenAccept(webServer -> LOG.info("Webserver running at port: {}, started in {} ms", webServer.port(), System.currentTimeMillis() - startTime));
     }
 
-    private final Map<Class<?>, Object> beans = new ConcurrentHashMap<>();
+    private final Map<Class<?>, Object> instanceByType = new ConcurrentHashMap<>();
+
+    public <T> T put(Class<T> clazz, T instance) {
+        return (T) instanceByType.put(clazz, instance);
+    }
 
     public <T> T get(Class<T> clazz) {
-        return (T) beans.get(clazz);
+        return (T) instanceByType.get(clazz);
     }
 
     public Application(Config config) {
-        beans.put(Config.class, config);
+        put(Config.class, config);
 
         // repositories
         PgPool pgPool = initPgPool(config.get("pgpool"));
         UserRepository userRepository = new UserRepository(pgPool);
         RoleRepository roleRepository = new RoleRepository(pgPool);
-        beans.put(PgPool.class, pgPool);
-        beans.put(UserRepository.class, userRepository);
-        beans.put(RoleRepository.class, roleRepository);
+        put(PgPool.class, pgPool);
+        put(UserRepository.class, userRepository);
+        put(RoleRepository.class, roleRepository);
 
         // routing
         Routing routing = Routing.builder()
@@ -62,14 +66,14 @@ public class Application {
                 .register("/user", new UserService(userRepository))
                 .register("/access", new AccessService(userRepository, roleRepository))
                 .build();
-        beans.put(Routing.class, routing);
+        put(Routing.class, routing);
 
         // web-server
         ServerConfiguration configuration = ServerConfiguration.builder(config.get("webserver")).build();
         WebServer webServer;
         try {
             webServer = WebServer.create(configuration, routing).start().toCompletableFuture().get(10, TimeUnit.SECONDS);
-            beans.put(WebServer.class, webServer);
+            put(WebServer.class, webServer);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             throw new RuntimeException(e);
         }
