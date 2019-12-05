@@ -1,0 +1,13 @@
+webserver:
+  port: 8080
+  host: "0.0.0.0"
+
+pgpool:
+  connect-options:
+    port: 15432
+    host: localhost
+    database: rdc
+    user: rdc
+    password: rdc
+  pool-options:
+    max-size: 5

@@ -1,7 +1,7 @@
-package no.ssb.datasetaccess;
+package no.ssb.datasetaccess.token;
 
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
-import no.ssb.datasetaccess.Token.TokenParseException;
+import no.ssb.datasetaccess.token.Token.TokenParseException;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;

@@ -1,7 +1,10 @@
 package no.ssb.datasetaccess.role;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import no.ssb.datasetaccess.JacksonUtils;
 import no.ssb.datasetaccess.dataset.DatasetState;
 import no.ssb.datasetaccess.dataset.Valuation;
 
@@ -35,7 +38,23 @@ public class Role {
         this.states = states;
     }
 
-    public static Role fromJson(JsonObject json) {
+    public static Role fromJackson(JsonNode json) {
+        try {
+            return JacksonUtils.mapper.treeToValue(json, Role.class);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static Role fromJsonString(String json) {
+        try {
+            return JacksonUtils.mapper.readValue(json, Role.class);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static Role fromVertxJson(JsonObject json) {
         String roleId = json.getString("roleId");
         Set<Privilege> privileges = json.getJsonArray("privileges").stream()
                 .map(o -> Privilege.valueOf((String) o)).collect(Collectors.toSet());
@@ -47,7 +66,7 @@ public class Role {
         return new Role(roleId, privileges, namespacePrefixes, maxValuation, states);
     }
 
-    public static JsonObject toJsonObject(Role role) {
+    public static JsonObject toVertxJsonObject(Role role) {
         JsonArray privilegesArray = new JsonArray();
         role.getPrivileges().stream().forEach(privilege -> privilegesArray.add(privilege));
         return new JsonObject()
