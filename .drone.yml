@@ -110,7 +110,7 @@ services:
     ports:
       - 5432
     command:
-      - cp /drone/src/init-db.sql /docker-entrypoint-initdb.d/init.sql
+      - cp ./init-db.sql /docker-entrypoint-initdb.d/init.sql
 
 ---
 kind: secret
