@@ -61,7 +61,7 @@ public class Application {
     public Application(Config config) {
         put(Config.class, config);
 
-        migrateDatabaseSchema(config.get("flyway"));
+        //migrateDatabaseSchema(config.get("flyway"));
 
         // repositories
         PgPool pgPool = initPgPool(config.get("pgpool"));
