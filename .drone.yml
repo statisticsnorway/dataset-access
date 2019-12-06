@@ -10,6 +10,7 @@ steps:
       - 5432
     commands:
       - cp ./init-db.sql /docker-entrypoint-initdb.d/init.sql
+      - /docker-entrypoint.sh postgres
 
   # Restore the cache if it exists
   - name: restore-cache
