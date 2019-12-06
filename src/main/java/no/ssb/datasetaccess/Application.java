@@ -1,6 +1,7 @@
 package no.ssb.datasetaccess;
 
 
+import ch.qos.logback.classic.util.ContextInitializer;
 import io.helidon.config.Config;
 import io.helidon.config.spi.ConfigSource;
 import io.helidon.media.jackson.server.JacksonSupport;
@@ -16,9 +17,12 @@ import no.ssb.datasetaccess.role.RoleService;
 import no.ssb.datasetaccess.user.UserRepository;
 import no.ssb.datasetaccess.user.UserService;
 import org.flywaydb.core.Flyway;
+import org.postgresql.ds.PGSimpleDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -34,7 +38,15 @@ import static io.helidon.config.ConfigSources.file;
 
 public class Application {
 
-    private static final Logger LOG = LoggerFactory.getLogger(Application.class);
+    private static final Logger LOG;
+
+    static {
+        String logbackConfigurationFile = System.getenv("LOGBACK_CONFIGURATION_FILE");
+        if (logbackConfigurationFile != null) {
+            System.setProperty(ContextInitializer.CONFIG_FILE_PROPERTY, logbackConfigurationFile);
+        }
+        LOG = LoggerFactory.getLogger(Application.class);
+    }
 
     public static void main(String[] args) {
         long startTime = System.currentTimeMillis();
@@ -43,6 +55,7 @@ public class Application {
         if (overrideFile != null) {
             configSourceSupplierList.add(file(overrideFile).optional());
         }
+        configSourceSupplierList.add(file("conf/application.yaml").optional());
         configSourceSupplierList.add(classpath("application.yaml"));
         Application application = new Application(Config.builder().sources(configSourceSupplierList).build());
         application.start().thenAccept(webServer -> LOG.info("Webserver running at port: {}, started in {} ms", webServer.port(), System.currentTimeMillis() - startTime));
@@ -61,7 +74,9 @@ public class Application {
     public Application(Config config) {
         put(Config.class, config);
 
-        //migrateDatabaseSchema(config.get("flyway"));
+        checkDatabaseConnectivity(config);
+
+        migrateDatabaseSchema(config.get("flyway"));
 
         // repositories
         PgPool pgPool = initPgPool(config.get("pgpool"));
@@ -88,6 +103,29 @@ public class Application {
             put(WebServer.class, webServer);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    private void checkDatabaseConnectivity(Config config) {
+        String host = config.get("pgpool.connect-options.host").asString().orElse("somehost");
+        int port = config.get("pgpool.connect-options.port").asInt().orElse(5432);
+        String database = config.get("pgpool.connect-options.database").asString().orElse("somedb");
+        String user = config.get("pgpool.connect-options.user").asString().orElse("someuser");
+        String password = config.get("pgpool.connect-options.password").asString().orElse("somepassword");
+
+        PGSimpleDataSource ds = new PGSimpleDataSource();
+        ds.setServerName(host);
+        ds.setPortNumber(port);
+        ds.setDatabaseName(database);
+        ds.setUser(user);
+        ds.setPassword(password);
+        try {
+            Connection connection = ds.getConnection();
+            connection.createStatement().execute("SELECT 1");
+            LOG.info("Successfully connected to {}:{}/{} with user {} and password ****", host, port, database, user);
+        } catch (SQLException e) {
+            LOG.error("Unable to connect to {}:{}/{} with user {} and password ****", host, port, database, user);
+            throw new RuntimeException(e.getMessage(), e);
         }
     }
 

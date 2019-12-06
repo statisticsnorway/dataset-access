@@ -13,6 +13,8 @@ module no.ssb.datasetaccess {
     requires java.net.http;
     requires io.helidon.common.reactive;
     requires org.flywaydb.core;
+    requires org.postgresql.jdbc;
+    requires logback.classic;
 
     /*
      * Not so well documented requirements are declared here to force fail-fast with proper error message if
@@ -21,6 +23,7 @@ module no.ssb.datasetaccess {
     //requires jdk.management.agent; // required to run application with the com.sun.management.jmxremote property
     requires jdk.unsupported; // required by netty to allow reliable low-level API access to direct-buffers
     requires jdk.naming.dns; // required by netty dns libraries used by reactive postgres
+    requires java.sql; // required by flyway
 
     opens no.ssb.datasetaccess to com.fasterxml.jackson.databind;
     opens no.ssb.datasetaccess.access to com.fasterxml.jackson.databind;
