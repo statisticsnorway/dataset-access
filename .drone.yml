@@ -8,6 +8,8 @@ steps:
     detach: true
     ports:
       - 5432
+    environment:
+      POSTGRES_PASSWORD: secret
     commands:
       - cp ./init-db.sql /docker-entrypoint-initdb.d/init.sql
       - /usr/local/bin/docker-entrypoint.sh postgres
