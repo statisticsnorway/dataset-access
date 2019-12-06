@@ -5,6 +5,7 @@ import ch.qos.logback.classic.util.ContextInitializer;
 import io.helidon.config.Config;
 import io.helidon.config.spi.ConfigSource;
 import io.helidon.media.jackson.server.JacksonSupport;
+import io.helidon.metrics.MetricsSupport;
 import io.helidon.webserver.Routing;
 import io.helidon.webserver.ServerConfiguration;
 import io.helidon.webserver.WebServer;
@@ -89,6 +90,7 @@ public class Application {
         // routing
         Routing routing = Routing.builder()
                 .register(JacksonSupport.create())
+                .register(MetricsSupport.create())
                 .register("/role", new RoleService(roleRepository))
                 .register("/user", new UserService(userRepository))
                 .register("/access", new AccessService(userRepository, roleRepository))
