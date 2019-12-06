@@ -41,7 +41,8 @@ class ApplicationTest {
         try {
             application.start().toCompletableFuture().get(5, TimeUnit.SECONDS);
             TestClient client = TestClient.newClient("localhost", application.get(WebServer.class).port());
-            client.get("/role/a").expect404NotFound();
+            client.put("/user/a", "{\"userId\": \"a\", \"roles\": []}").expect201Created();
+            client.get("/user/a").expect200Ok();
         } finally {
             application.stop();
         }
