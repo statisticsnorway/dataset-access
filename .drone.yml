@@ -66,7 +66,7 @@ steps:
       SONAR_PROJECTKEY:
         from_secret: sonar_token
     depends_on:
-      - build
+      - test
 
   - name: publish-docker
     image: plugins/gcr
@@ -82,7 +82,7 @@ steps:
       event:
         - push
     depends_on:
-      - build
+      - test
 
   - name: slack
     image: plugins/slack
@@ -93,7 +93,7 @@ steps:
     when:
       status: [ success, failure ]
     depends_on:
-      - build
+      - test
 
   # Rebuild cache if it has changed with this build
   - name: rebuild-cache
@@ -107,7 +107,7 @@ steps:
       mount:
         - .m2/repository
     depends_on:
-      - build
+      - sonarqube
 
   # OPTIONAL: Flush the cache of old cache items (older than 14 days)
   - name: flush-cache
@@ -120,7 +120,7 @@ steps:
       flush: true
       flush_age: 14
     depends_on:
-      - build
+      - sonarqube
 
 ---
 kind: secret
