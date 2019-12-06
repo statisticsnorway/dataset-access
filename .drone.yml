@@ -106,7 +106,7 @@ steps:
 
 services:
   - name: postgres
-    image: postgres:11-alpine
+    image: postgres:12-alpine
     ports:
       - 5432
     environment:
