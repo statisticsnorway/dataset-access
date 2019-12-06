@@ -50,6 +50,13 @@ steps:
       - authenticate
       - restore-cache
 
+  - name: checkpostgres
+    image: amouat/network-utils
+    commands:
+      - nc -z -v postgres 5432
+    depends_on:
+      - build
+
   - name: test
     image: maven:3-jdk-11
     commands:
@@ -59,7 +66,7 @@ steps:
     environment:
       HELIDON_CONFIG_PROFILE: drone
     depends_on:
-      - build
+      - checkpostgres
 
   - name: sonarqube
     image: maven:3-jdk-11
