@@ -9,7 +9,7 @@ start: ## Run the application inside a docker container
 
 .PHONY: build
 build: ## Build the application with maven
-	./mvnw -B clean install dependency:copy-dependencies -DincludeScope=runtime
+	./mvnw -B clean install dependency:copy-dependencies
 
 .PHONY: stop
 stop: ## Stop the application
