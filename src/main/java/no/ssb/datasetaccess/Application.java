@@ -119,8 +119,7 @@ public class Application {
         ds.setDatabaseName(database);
         ds.setUser(user);
         ds.setPassword(password);
-        try {
-            Connection connection = ds.getConnection();
+        try (Connection connection = ds.getConnection()) {
             connection.createStatement().execute("SELECT 1");
             LOG.info("Successfully connected to {}:{}/{} with user {} and password ****", host, port, database, user);
         } catch (SQLException e) {
