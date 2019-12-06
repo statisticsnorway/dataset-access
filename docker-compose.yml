@@ -14,5 +14,9 @@ services:
     image: dataset-access:dev
     ports:
       - 8989:8080
+    environment:
+      PGPOOL_CONNECT_dash_OPTIONS_HOST: postgres
+      PGPOOL_CONNECT_dash_OPTIONS_PORT: 5432
+      FLYWAY_URL: jdbc:postgresql://postgres:5432/rdc
     depends_on:
       - postgres
