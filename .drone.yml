@@ -54,8 +54,7 @@ steps:
     environment:
       HELIDON_CONFIG_PROFILE: drone
     depends_on:
-      - authenticate
-      - restore-cache
+      - build
 
   - name: sonarqube
     image: maven:3-jdk-11
