@@ -109,8 +109,8 @@ services:
     image: postgres:12-alpine
     ports:
       - 5432
-    volumes:
-      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    command:
+      - cp /drone/src/init-db.sql /docker-entrypoint-initdb.d/init.sql
 
 ---
 kind: secret
