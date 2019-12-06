@@ -1,10 +1,8 @@
-package no.ssb.datasetaccess.role;
+package no.ssb.datasetaccess;
 
 import io.helidon.config.Config;
 import io.helidon.config.spi.ConfigSource;
 import io.helidon.webserver.WebServer;
-import no.ssb.datasetaccess.Application;
-import no.ssb.datasetaccess.TestClient;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedList;
@@ -17,10 +15,10 @@ import java.util.function.Supplier;
 import static io.helidon.config.ConfigSources.classpath;
 import static io.helidon.config.ConfigSources.file;
 
-class AppStackTest {
+class ApplicationTest {
 
     @Test
-    void thatApplicationStack() throws InterruptedException, ExecutionException, TimeoutException {
+    void thatApplicationStackCanBeStarted() throws InterruptedException, ExecutionException, TimeoutException {
         List<Supplier<ConfigSource>> configSourceSupplierList = new LinkedList<>();
         String overrideFile = System.getenv("HELIDON_CONFIG_FILE");
         if (overrideFile != null) {
@@ -40,8 +38,12 @@ class AppStackTest {
         }
         configSourceSupplierList.add(classpath("application.yaml"));
         Application application = new Application(Config.builder().sources(configSourceSupplierList).build());
-        application.start().toCompletableFuture().get(5, TimeUnit.SECONDS);
-        TestClient client = TestClient.newClient("localhost", application.get(WebServer.class).port());
-        client.get("/role/a").expect404NotFound();
+        try {
+            application.start().toCompletableFuture().get(5, TimeUnit.SECONDS);
+            TestClient client = TestClient.newClient("localhost", application.get(WebServer.class).port());
+            client.get("/role/a").expect404NotFound();
+        } finally {
+            application.stop();
+        }
     }
 }
