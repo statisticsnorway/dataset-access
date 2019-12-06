@@ -60,8 +60,6 @@ steps:
   - name: test
     image: maven:3-jdk-11
     commands:
-      - apt-get update && apt-get install -y netcat
-      - nc -z -v postgres 5432
       - mvn test -P ssb-bip -Dmaven.repo.local=/drone/src/.m2/repository --batch-mode --global-settings settings.xml
     environment:
       HELIDON_CONFIG_PROFILE: drone
