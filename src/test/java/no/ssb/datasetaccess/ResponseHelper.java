@@ -35,6 +35,11 @@ public class ResponseHelper<T> {
         return this;
     }
 
+    public ResponseHelper<T> expect403Forbidden() {
+        assertEquals(HttpURLConnection.HTTP_FORBIDDEN, response.statusCode(), String.valueOf(body));
+        return this;
+    }
+
     public ResponseHelper<T> expect400BadRequest() {
         assertEquals(HttpURLConnection.HTTP_BAD_REQUEST, response.statusCode(), String.valueOf(body));
         return this;

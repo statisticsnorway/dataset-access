@@ -5,8 +5,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -42,8 +44,8 @@ public final class TestClient {
 
     URI toUri(String path) {
         try {
-            return new URI("http", "test_user", host, port, path, "", "");
-        } catch (URISyntaxException e) {
+            return new URL(String.format("http://%s:%d%s", host, port, path)).toURI();
+        } catch (URISyntaxException | MalformedURLException e) {
             throw new RuntimeException(e);
         }
     }
