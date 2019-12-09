@@ -16,6 +16,8 @@ module no.ssb.datasetaccess {
     requires org.postgresql.jdbc;
     requires logback.classic;
     requires io.helidon.metrics;
+    requires io.helidon.health;
+    requires io.helidon.health.checks;
 
     /*
      * Not so well documented requirements are declared here to force fail-fast with proper error message if

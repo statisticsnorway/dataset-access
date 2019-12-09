@@ -13,17 +13,17 @@ import io.vertx.pgclient.PgConnectOptions;
 import io.vertx.pgclient.PgPool;
 import io.vertx.sqlclient.PoolOptions;
 import no.ssb.datasetaccess.access.AccessService;
+import no.ssb.datasetaccess.health.Health;
+import no.ssb.datasetaccess.health.HealthAwarePgPool;
+import no.ssb.datasetaccess.health.ReadinessSample;
 import no.ssb.datasetaccess.role.RoleRepository;
 import no.ssb.datasetaccess.role.RoleService;
 import no.ssb.datasetaccess.user.UserRepository;
 import no.ssb.datasetaccess.user.UserService;
 import org.flywaydb.core.Flyway;
-import org.postgresql.ds.PGSimpleDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.Connection;
-import java.sql.SQLException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import static io.helidon.config.ConfigSources.classpath;
@@ -75,12 +76,18 @@ public class Application {
     public Application(Config config) {
         put(Config.class, config);
 
-        checkDatabaseConnectivity(config);
+        AtomicReference<ReadinessSample> lastReadySample = new AtomicReference<>(new ReadinessSample(false, System.currentTimeMillis()));
 
+        // reactive postgres client
+        PgPool pgPool = new HealthAwarePgPool(initPgPool(config.get("pgpool")), lastReadySample);
+
+        // initialize health, including a database connectivity wait-loop
+        Health health = new Health(config, pgPool, lastReadySample, () -> get(WebServer.class));
+
+        // schema migration using flyway and jdbc
         migrateDatabaseSchema(config.get("flyway"));
 
         // repositories
-        PgPool pgPool = initPgPool(config.get("pgpool"));
         UserRepository userRepository = new UserRepository(pgPool);
         RoleRepository roleRepository = new RoleRepository(pgPool);
         put(PgPool.class, pgPool);
@@ -91,6 +98,7 @@ public class Application {
         Routing routing = Routing.builder()
                 .register(JacksonSupport.create())
                 .register(MetricsSupport.create())
+                .register(health)
                 .register("/role", new RoleService(roleRepository))
                 .register("/user", new UserService(userRepository))
                 .register("/access", new AccessService(userRepository, roleRepository))
@@ -99,35 +107,8 @@ public class Application {
 
         // web-server
         ServerConfiguration configuration = ServerConfiguration.builder(config.get("webserver")).build();
-        WebServer webServer;
-        try {
-            webServer = WebServer.create(configuration, routing).start().toCompletableFuture().get(10, TimeUnit.SECONDS);
-            put(WebServer.class, webServer);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private void checkDatabaseConnectivity(Config config) {
-        String host = config.get("pgpool.connect-options.host").asString().orElse("somehost");
-        int port = config.get("pgpool.connect-options.port").asInt().orElse(5432);
-        String database = config.get("pgpool.connect-options.database").asString().orElse("somedb");
-        String user = config.get("pgpool.connect-options.user").asString().orElse("someuser");
-        String password = config.get("pgpool.connect-options.password").asString().orElse("somepassword");
-
-        PGSimpleDataSource ds = new PGSimpleDataSource();
-        ds.setServerName(host);
-        ds.setPortNumber(port);
-        ds.setDatabaseName(database);
-        ds.setUser(user);
-        ds.setPassword(password);
-        try (Connection connection = ds.getConnection()) {
-            connection.createStatement().execute("SELECT 1");
-            LOG.info("Successfully connected to {}:{}/{} with user {} and password ****", host, port, database, user);
-        } catch (SQLException e) {
-            LOG.error("Unable to connect to {}:{}/{} with user {} and password ****", host, port, database, user);
-            throw new RuntimeException(e.getMessage(), e);
-        }
+        WebServer webServer = WebServer.create(configuration, routing);
+        put(WebServer.class, webServer);
     }
 
     private void migrateDatabaseSchema(Config flywayConfig) {

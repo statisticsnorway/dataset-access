@@ -16,3 +16,10 @@ flyway:
   url: jdbc:postgresql://localhost:15432/rdc
   user: rdc
   password: rdc
+
+init:
+  db-connectivity-attempts: 3
+
+health:
+  readiness:
+    idle-timeout: 2000
