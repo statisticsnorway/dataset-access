@@ -61,6 +61,9 @@ public class AccessService implements Service {
             List<CompletableFuture<Void>> roleCompletableList = new ArrayList<>();
             for (String roleId : user.getRoles()) {
                 roleCompletableList.add(roleRepository.getRole(roleId).thenAccept(role -> {
+                    if (role == null) {
+                        return;
+                    }
                     if (!role.getPrivileges().contains(privilege)) {
                         return;
                     }
