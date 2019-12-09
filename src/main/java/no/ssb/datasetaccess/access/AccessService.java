@@ -68,7 +68,7 @@ public class AccessService implements Service {
                         return;
                     }
                     String floor = role.getNamespacePrefixes().floor(namespace);
-                    if (!namespace.startsWith(floor)) {
+                    if (floor == null || !namespace.startsWith(floor)) {
                         return;
                     }
                     if (!role.getMaxValuation().grantsAccessTo(valuation)) {

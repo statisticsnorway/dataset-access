@@ -65,6 +65,13 @@ class AccessServiceTest {
     }
 
     @Test
+    void GetAccessWhenUserDoesntHaveTheAppropriateNamespaceReturns403() {
+        createUser("john_with_missing_ns", Set.of("creator"));
+        createRole("creator", Set.of(Privilege.CREATE), Set.of("/ns/test/a", "/test"), Valuation.OPEN, Set.of(DatasetState.OTHER));
+        client.get("/access/john_with_missing_ns?privilege=CREATE&namespace=/ns/test&valuation=OPEN&state=OTHER").expect403Forbidden();
+    }
+
+    @Test
     void thatGetAccessWhenUserDoesntHaveTheAppropriatePrivilegeReturns403() {
         createUser("john_cant_delete", Set.of("updater"));
         createRole("updater", Set.of(Privilege.UPDATE), Set.of("/ns/test"), Valuation.SHIELDED, Set.of(DatasetState.PROCESSED));
