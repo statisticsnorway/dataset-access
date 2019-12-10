@@ -1,12 +1,15 @@
 package no.ssb.datasetaccess.role;
 
 
+import io.helidon.metrics.RegistryFactory;
 import io.vertx.core.json.JsonObject;
 import io.vertx.pgclient.PgPool;
 import io.vertx.sqlclient.Row;
 import io.vertx.sqlclient.RowIterator;
 import io.vertx.sqlclient.RowSet;
 import io.vertx.sqlclient.Tuple;
+import org.eclipse.microprofile.metrics.Counter;
+import org.eclipse.microprofile.metrics.MetricRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,6 +20,10 @@ public class RoleRepository {
     private static final Logger LOG = LoggerFactory.getLogger(RoleRepository.class);
 
     private final PgPool client;
+
+    private final Counter rolesCreatedOrUpdatedCount = RegistryFactory.getInstance().getRegistry(MetricRegistry.Type.APPLICATION).counter("rolesCreatedOrUpdatedCount");
+    private final Counter rolesDeletedCount = RegistryFactory.getInstance().getRegistry(MetricRegistry.Type.APPLICATION).counter("rolesDeletedCount");
+    private final Counter rolesReadCount = RegistryFactory.getInstance().getRegistry(MetricRegistry.Type.APPLICATION).counter("rolesReadCount");
 
     public RoleRepository(PgPool client) {
         this.client = client;
@@ -38,6 +45,7 @@ public class RoleRepository {
             Row row = iterator.next();
             Role role = Role.fromVertxJson(row.get(JsonObject.class, 1));
             future.complete(role);
+            rolesReadCount.inc();
         });
         return future;
     }
@@ -52,6 +60,7 @@ public class RoleRepository {
                         return;
                     }
                     future.complete(null);
+                    rolesCreatedOrUpdatedCount.inc();
                 });
         return future;
     }
@@ -64,6 +73,7 @@ public class RoleRepository {
                 return;
             }
             future.complete(null);
+            rolesDeletedCount.inc();
         });
         return future;
     }
@@ -75,7 +85,9 @@ public class RoleRepository {
                 future.completeExceptionally(ar.cause());
                 return;
             }
+            int rowsDeleted = ar.result().rowCount();
             future.complete(null);
+            rolesDeletedCount.inc(rowsDeleted);
         });
         return future;
     }

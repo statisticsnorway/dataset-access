@@ -1,12 +1,15 @@
 package no.ssb.datasetaccess.user;
 
 
+import io.helidon.metrics.RegistryFactory;
 import io.vertx.core.json.JsonObject;
 import io.vertx.pgclient.PgPool;
 import io.vertx.sqlclient.Row;
 import io.vertx.sqlclient.RowIterator;
 import io.vertx.sqlclient.RowSet;
 import io.vertx.sqlclient.Tuple;
+import org.eclipse.microprofile.metrics.Counter;
+import org.eclipse.microprofile.metrics.MetricRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,6 +20,10 @@ public class UserRepository {
     private static final Logger LOG = LoggerFactory.getLogger(UserRepository.class);
 
     private final PgPool client;
+
+    private final Counter usersCreatedOrUpdatedCount = RegistryFactory.getInstance().getRegistry(MetricRegistry.Type.APPLICATION).counter("usersCreatedOrUpdatedCount");
+    private final Counter usersDeletedCount = RegistryFactory.getInstance().getRegistry(MetricRegistry.Type.APPLICATION).counter("usersDeletedCount");
+    private final Counter usersReadCount = RegistryFactory.getInstance().getRegistry(MetricRegistry.Type.APPLICATION).counter("usersReadCount");
 
     public UserRepository(PgPool client) {
         this.client = client;
@@ -38,6 +45,7 @@ public class UserRepository {
             Row row = iterator.next();
             User user = User.fromJson(row.get(JsonObject.class, 1));
             future.complete(user);
+            usersReadCount.inc();
         });
         return future;
     }
@@ -52,6 +60,7 @@ public class UserRepository {
                         return;
                     }
                     future.complete(null);
+                    usersCreatedOrUpdatedCount.inc();
                 });
         return future;
     }
@@ -64,6 +73,7 @@ public class UserRepository {
                 return;
             }
             future.complete(null);
+            usersDeletedCount.inc();
         });
         return future;
     }
@@ -75,7 +85,9 @@ public class UserRepository {
                 future.completeExceptionally(ar.cause());
                 return;
             }
+            int rowsDeleted = ar.result().rowCount();
             future.complete(null);
+            usersDeletedCount.inc(rowsDeleted);
         });
         return future;
     }

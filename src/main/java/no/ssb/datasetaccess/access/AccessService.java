@@ -1,6 +1,7 @@
 package no.ssb.datasetaccess.access;
 
 import io.helidon.common.http.Http;
+import io.helidon.metrics.RegistryFactory;
 import io.helidon.webserver.Routing;
 import io.helidon.webserver.ServerRequest;
 import io.helidon.webserver.ServerResponse;
@@ -10,6 +11,8 @@ import no.ssb.datasetaccess.dataset.Valuation;
 import no.ssb.datasetaccess.role.Privilege;
 import no.ssb.datasetaccess.role.RoleRepository;
 import no.ssb.datasetaccess.user.UserRepository;
+import org.eclipse.microprofile.metrics.Counter;
+import org.eclipse.microprofile.metrics.MetricRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,10 +23,13 @@ import java.util.concurrent.TimeUnit;
 
 public class AccessService implements Service {
 
+    private static final Logger LOG = LoggerFactory.getLogger(AccessService.class);
+
     final UserRepository userRepository;
     final RoleRepository roleRepository;
 
-    private static final Logger LOG = LoggerFactory.getLogger(AccessService.class);
+    private final Counter accessGrantedCount = RegistryFactory.getInstance().getRegistry(MetricRegistry.Type.APPLICATION).counter("accessGrantedCount");
+    private final Counter accessDeniedCount = RegistryFactory.getInstance().getRegistry(MetricRegistry.Type.APPLICATION).counter("accessDeniedCount");
 
     public AccessService(UserRepository userRepository, RoleRepository roleRepository) {
         this.userRepository = userRepository;
@@ -43,7 +49,15 @@ public class AccessService implements Service {
         DatasetState state = DatasetState.valueOf(req.queryParams().first("state").orElseThrow());
         hasAccess(userId, privilege, namespace, valuation, state)
                 .orTimeout(2, TimeUnit.SECONDS)
-                .thenAccept(access -> res.status(access ? Http.Status.OK_200 : Http.Status.FORBIDDEN_403).send())
+                .thenAccept(access -> {
+                    if (access) {
+                        accessGrantedCount.inc();
+                        res.status(Http.Status.OK_200).send();
+                    } else {
+                        accessDeniedCount.inc();
+                        res.status(Http.Status.FORBIDDEN_403).send();
+                    }
+                })
                 .exceptionally(t -> {
                     res.status(Http.Status.INTERNAL_SERVER_ERROR_500).send(t.getMessage());
                     LOG.error("Could not complete access request for user {}", userId, t);
