@@ -13,6 +13,7 @@ import no.ssb.datasetaccess.role.RoleRepository;
 import no.ssb.datasetaccess.user.UserRepository;
 import org.eclipse.microprofile.metrics.Counter;
 import org.eclipse.microprofile.metrics.MetricRegistry;
+import org.eclipse.microprofile.metrics.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,6 +29,7 @@ public class AccessService implements Service {
     final UserRepository userRepository;
     final RoleRepository roleRepository;
 
+    private final Timer accessTimer = RegistryFactory.getInstance().getRegistry(MetricRegistry.Type.APPLICATION).timer("accessTimer");
     private final Counter accessGrantedCount = RegistryFactory.getInstance().getRegistry(MetricRegistry.Type.APPLICATION).counter("accessGrantedCount");
     private final Counter accessDeniedCount = RegistryFactory.getInstance().getRegistry(MetricRegistry.Type.APPLICATION).counter("accessDeniedCount");
 
@@ -47,8 +49,9 @@ public class AccessService implements Service {
         String namespace = req.queryParams().first("namespace").orElseThrow();
         Valuation valuation = Valuation.valueOf(req.queryParams().first("valuation").orElseThrow());
         DatasetState state = DatasetState.valueOf(req.queryParams().first("state").orElseThrow());
+        Timer.Context timerContext = accessTimer.time();
         hasAccess(userId, privilege, namespace, valuation, state)
-                .orTimeout(2, TimeUnit.SECONDS)
+                .orTimeout(10, TimeUnit.SECONDS)
                 .thenAccept(access -> {
                     if (access) {
                         accessGrantedCount.inc();
@@ -57,11 +60,15 @@ public class AccessService implements Service {
                         accessDeniedCount.inc();
                         res.status(Http.Status.FORBIDDEN_403).send();
                     }
-                })
+                }).thenRun(() -> timerContext.stop())
                 .exceptionally(t -> {
-                    res.status(Http.Status.INTERNAL_SERVER_ERROR_500).send(t.getMessage());
-                    LOG.error("Could not complete access request for user {}", userId, t);
-                    return null;
+                    try {
+                        res.status(Http.Status.INTERNAL_SERVER_ERROR_500).send(t.getMessage());
+                        LOG.error("Could not complete access request for user {}", userId, t);
+                        return null;
+                    } finally {
+                        timerContext.stop();
+                    }
                 });
     }
 
