@@ -9,6 +9,7 @@ import io.helidon.webserver.Service;
 import no.ssb.datasetaccess.dataset.DatasetState;
 import no.ssb.datasetaccess.dataset.Valuation;
 import no.ssb.datasetaccess.role.Privilege;
+import no.ssb.datasetaccess.role.Role;
 import no.ssb.datasetaccess.role.RoleRepository;
 import no.ssb.datasetaccess.user.UserRepository;
 import org.eclipse.microprofile.metrics.Counter;
@@ -17,8 +18,6 @@ import org.eclipse.microprofile.metrics.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -79,30 +78,32 @@ public class AccessService implements Service {
                 future.complete(false);
                 return;
             }
-            List<CompletableFuture<Void>> roleCompletableList = new ArrayList<>();
-            for (String roleId : user.getRoles()) {
-                roleCompletableList.add(roleRepository.getRole(roleId).thenAccept(role -> {
+            roleRepository.getRoles(user.getRoles()).thenAccept(roles -> {
+                for (Role role : roles) {
                     if (role == null) {
-                        return;
+                        continue;
                     }
                     if (!role.getPrivileges().contains(privilege)) {
-                        return;
+                        continue;
                     }
                     String floor = role.getNamespacePrefixes().floor(namespace);
                     if (floor == null || !namespace.startsWith(floor)) {
-                        return;
+                        continue;
                     }
                     if (!role.getMaxValuation().grantsAccessTo(valuation)) {
-                        return;
+                        continue;
                     }
                     if (!role.getStates().contains(state)) {
-                        return;
+                        continue;
                     }
                     future.complete(true);
-                }));
-            }
-            CompletableFuture.allOf(roleCompletableList.toArray(new CompletableFuture[0]))
-                    .thenRun(() -> future.complete(false));
+                    return;
+                }
+                future.complete(false);
+            }).exceptionally(t -> {
+                future.completeExceptionally(t);
+                return null;
+            });
         });
         return future;
     }

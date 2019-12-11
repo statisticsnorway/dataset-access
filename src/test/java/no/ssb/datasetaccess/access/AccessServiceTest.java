@@ -88,4 +88,14 @@ class AccessServiceTest {
     void thatGetAccessOnNonExistingUserReturns403() {
         client.get("/access/does_not_exist?privilege=READ&namespace=a&valuation=SENSITIVE&state=RAW").expect403Forbidden();
     }
+
+    @Test
+    void thatGetAccessForUserWithMoreThanOneRoleWorks() {
+        createUser("john_two_roles", Set.of("updater", "reader"));
+        createRole("updater", Set.of(Privilege.UPDATE), Set.of("/ns/test"), Valuation.INTERNAL, Set.of(DatasetState.RAW, DatasetState.INPUT));
+        createRole("reader", Set.of(Privilege.READ), Set.of("/ns/test"), Valuation.INTERNAL, Set.of(DatasetState.RAW, DatasetState.INPUT));
+        client.get("/access/john_two_roles?privilege=UPDATE&namespace=/ns/test&valuation=INTERNAL&state=RAW").expect200Ok();
+        client.get("/access/john_two_roles?privilege=READ&namespace=/ns/test&valuation=INTERNAL&state=RAW").expect200Ok();
+        client.get("/access/john_two_roles?privilege=DELETE&namespace=/ns/test&valuation=INTERNAL&state=RAW").expect403Forbidden();
+    }
 }

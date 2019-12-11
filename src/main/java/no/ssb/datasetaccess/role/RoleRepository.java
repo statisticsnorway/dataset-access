@@ -13,6 +13,10 @@ import org.eclipse.microprofile.metrics.MetricRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public class RoleRepository {
@@ -46,6 +50,47 @@ public class RoleRepository {
             Role role = Role.fromVertxJson(row.get(JsonObject.class, 1));
             future.complete(role);
             rolesReadCount.inc();
+        });
+        return future;
+    }
+
+    public CompletableFuture<List<Role>> getRoles(Collection<String> roleIds) {
+        if (roleIds == null || roleIds.isEmpty()) {
+            return CompletableFuture.completedFuture(Collections.emptyList());
+        }
+
+        CompletableFuture<List<Role>> future = new CompletableFuture<>();
+        StringBuilder sb = new StringBuilder("SELECT roleId, document FROM role WHERE roleId IN (");
+        Tuple arguments = Tuple.tuple();
+        int i = 1;
+        for (String roleId : roleIds) {
+            if (i > 1) {
+                sb.append(",");
+            }
+            sb.append("$").append(i);
+            arguments.addString(roleId);
+            i++;
+        }
+        sb.append(") ORDER BY roleId");
+        client.preparedQuery(sb.toString(), arguments, ar -> {
+            if (!ar.succeeded()) {
+                future.completeExceptionally(ar.cause());
+                return;
+            }
+            RowSet<Row> result = ar.result();
+            List<Role> roles = new ArrayList<>(result.rowCount());
+            RowIterator<Row> iterator = result.iterator();
+            if (!iterator.hasNext()) {
+                future.complete(Collections.emptyList());
+                return;
+            }
+            while (iterator.hasNext()) {
+                Row row = iterator.next();
+                Role role = Role.fromVertxJson(row.get(JsonObject.class, 1));
+                roles.add(role);
+            }
+            future.complete(roles);
+            rolesReadCount.inc(result.rowCount());
         });
         return future;
     }
