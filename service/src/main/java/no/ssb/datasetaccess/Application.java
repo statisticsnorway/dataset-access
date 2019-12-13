@@ -68,7 +68,14 @@ public class Application {
         configSourceSupplierList.add(file("conf/application.yaml").optional());
         configSourceSupplierList.add(classpath("application.yaml"));
         Application application = new Application(Config.builder().sources(configSourceSupplierList).build());
-        application.start().thenAccept(webServer -> LOG.info("Webserver running at port: {}, started in {} ms", webServer.port(), System.currentTimeMillis() - startTime));
+        application.start().toCompletableFuture().orTimeout(10, TimeUnit.SECONDS)
+                .thenAccept(app -> LOG.info("Webserver running at port: {}, Grpcserver running at port: {}, started in {} ms",
+                        app.get(WebServer.class).port(), app.get(GrpcServer.class).port(), System.currentTimeMillis() - startTime))
+                .exceptionally(throwable -> {
+                    LOG.error("While starting application", throwable);
+                    System.exit(1);
+                    return null;
+                });
     }
 
     private final Map<Class<?>, Object> instanceByType = new ConcurrentHashMap<>();
@@ -158,8 +165,9 @@ public class Application {
         return PgPool.pool(connectOptions, poolOptions);
     }
 
-    public CompletionStage<WebServer> start() {
-        return get(WebServer.class).start();
+    public CompletionStage<Application> start() {
+        return get(WebServer.class).start()
+                .thenCombine(get(GrpcServer.class).start(), (webServer, grpcServer) -> this);
     }
 
     public Application stop() {
