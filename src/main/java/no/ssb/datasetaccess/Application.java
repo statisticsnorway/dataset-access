@@ -23,6 +23,7 @@ import no.ssb.datasetaccess.user.UserService;
 import org.flywaydb.core.Flyway;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.bridge.SLF4JBridgeHandler;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -34,6 +35,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
+import java.util.logging.LogManager;
 
 import static io.helidon.config.ConfigSources.classpath;
 import static io.helidon.config.ConfigSources.file;
@@ -47,6 +49,9 @@ public class Application {
         if (logbackConfigurationFile != null) {
             System.setProperty(ContextInitializer.CONFIG_FILE_PROPERTY, logbackConfigurationFile);
         }
+        LogManager.getLogManager().reset();
+        SLF4JBridgeHandler.removeHandlersForRootLogger();
+        SLF4JBridgeHandler.install();
         LOG = LoggerFactory.getLogger(Application.class);
     }
 

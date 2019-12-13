@@ -1,5 +1,6 @@
 module no.ssb.datasetaccess {
     requires org.slf4j;
+    requires jul.to.slf4j;
     requires org.reactivestreams;
     requires com.fasterxml.jackson.databind;
     requires com.fasterxml.jackson.annotation;
