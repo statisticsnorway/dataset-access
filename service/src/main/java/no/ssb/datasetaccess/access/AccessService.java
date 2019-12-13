@@ -1,11 +1,17 @@
 package no.ssb.datasetaccess.access;
 
+import io.grpc.Status;
+import io.grpc.StatusException;
+import io.grpc.stub.StreamObserver;
 import io.helidon.common.http.Http;
 import io.helidon.metrics.RegistryFactory;
 import io.helidon.webserver.Routing;
 import io.helidon.webserver.ServerRequest;
 import io.helidon.webserver.ServerResponse;
 import io.helidon.webserver.Service;
+import no.ssb.dapla.auth.dataset.protobuf.AccessCheckRequest;
+import no.ssb.dapla.auth.dataset.protobuf.AccessCheckResponse;
+import no.ssb.dapla.auth.dataset.protobuf.AuthServiceGrpc;
 import no.ssb.datasetaccess.dataset.DatasetState;
 import no.ssb.datasetaccess.dataset.Valuation;
 import no.ssb.datasetaccess.role.Privilege;
@@ -21,7 +27,7 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-public class AccessService implements Service {
+public class AccessService extends AuthServiceGrpc.AuthServiceImplBase implements Service {
 
     private static final Logger LOG = LoggerFactory.getLogger(AccessService.class);
 
@@ -106,5 +112,24 @@ public class AccessService implements Service {
             });
         });
         return future;
+    }
+
+    @Override
+    public void hasAccess(AccessCheckRequest request, StreamObserver<AccessCheckResponse> responseObserver) {
+        String userId = request.getUserId();
+        Privilege privilege = Privilege.valueOf(request.getPrivilege());
+        String namespace = request.getNamespace();
+        Valuation valuation = Valuation.valueOf(request.getValuation());
+        DatasetState state = DatasetState.valueOf(request.getState());
+        hasAccess(userId, privilege, namespace, valuation, state)
+                .orTimeout(10, TimeUnit.SECONDS)
+                .thenRun(() -> {
+                    responseObserver.onNext(AccessCheckResponse.newBuilder().setAllowed(true).build());
+                    responseObserver.onCompleted();
+                })
+                .exceptionally(throwable -> {
+                    responseObserver.onError(new StatusException(Status.fromThrowable(throwable)));
+                    return null;
+                });
     }
 }

@@ -2,6 +2,9 @@ webserver:
   port: -1
   host: "0.0.0.0"
 
+grpcserver:
+  port: -1
+
 pgpool:
   connect-options:
     port: 15432

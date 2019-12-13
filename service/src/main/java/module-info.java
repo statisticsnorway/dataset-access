@@ -20,6 +20,11 @@ module no.ssb.datasetaccess {
     requires io.helidon.health;
     requires io.helidon.health.checks;
 
+    requires no.ssb.dapla.auth.dataset.protobuf;
+    requires grpc.protobuf;
+    requires io.helidon.grpc.server;
+    requires java.logging;
+
     /*
      * Not so well documented requirements are declared here to force fail-fast with proper error message if
      * missing from jvm.

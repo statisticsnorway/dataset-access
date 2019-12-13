@@ -4,4 +4,17 @@ option java_multiple_files = true;
 option java_package = "no.ssb.dapla.auth.dataset.protobuf";
 
 service AuthService {
+    rpc hasAccess (AccessCheckRequest) returns (AccessCheckResponse);
+}
+
+message AccessCheckRequest {
+    string userId = 1;
+    string privilege = 2;
+    string namespace = 3;
+    string valuation = 4;
+    string state = 5;
+}
+
+message AccessCheckResponse {
+    bool allowed = 1;
 }

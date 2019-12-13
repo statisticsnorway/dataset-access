@@ -4,6 +4,9 @@ package no.ssb.datasetaccess;
 import ch.qos.logback.classic.util.ContextInitializer;
 import io.helidon.config.Config;
 import io.helidon.config.spi.ConfigSource;
+import io.helidon.grpc.server.GrpcRouting;
+import io.helidon.grpc.server.GrpcServer;
+import io.helidon.grpc.server.GrpcServerConfiguration;
 import io.helidon.media.jackson.server.JacksonSupport;
 import io.helidon.metrics.MetricsSupport;
 import io.helidon.webserver.Routing;
@@ -99,6 +102,9 @@ public class Application {
         put(UserRepository.class, userRepository);
         put(RoleRepository.class, roleRepository);
 
+        // services
+        AccessService accessService = new AccessService(userRepository, roleRepository);
+
         // routing
         Routing routing = Routing.builder()
                 .register(JacksonSupport.create())
@@ -106,7 +112,7 @@ public class Application {
                 .register(health)
                 .register("/role", new RoleService(roleRepository))
                 .register("/user", new UserService(userRepository))
-                .register("/access", new AccessService(userRepository, roleRepository))
+                .register("/access", accessService)
                 .build();
         put(Routing.class, routing);
 
@@ -114,6 +120,15 @@ public class Application {
         ServerConfiguration configuration = ServerConfiguration.builder(config.get("webserver")).build();
         WebServer webServer = WebServer.create(configuration, routing);
         put(WebServer.class, webServer);
+
+        // grpc-server
+        GrpcServer grpcServer = GrpcServer.create(
+                GrpcServerConfiguration.create(config.get("grpcserver")),
+                GrpcRouting.builder()
+                        .register(accessService)
+                        .build()
+        );
+        put(GrpcServer.class, grpcServer);
     }
 
     private void migrateDatabaseSchema(Config flywayConfig) {

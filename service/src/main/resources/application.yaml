@@ -2,6 +2,9 @@ webserver:
   port: 8080
   host: "0.0.0.0"
 
+grpcserver:
+  port: 7070
+
 pgpool:
   connect-options:
     port: 15432
