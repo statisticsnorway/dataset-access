@@ -26,8 +26,8 @@ FROM alpine:latest
 # Resources from build image
 #
 COPY --from=build /linked /jdk/
-COPY service/target/dependency /app/lib/
-COPY service/target/dataset-access-*.jar /app/lib/
+COPY service/target/libs /app/lib/
+COPY service/target/dapla-auth-dataset-service*.jar /app/lib/
 COPY service/target/classes/logback.xml /app/conf/
 COPY service/target/classes/logback-bip.xml /app/conf/
 COPY service/target/classes/application.yaml /app/conf/
