@@ -16,6 +16,7 @@ services:
     image: dataset-access:dev
     ports:
       - 8989:8080
+      - 7979:7070
     environment:
       PGPOOL_CONNECT_dash_OPTIONS_HOST: postgres
       PGPOOL_CONNECT_dash_OPTIONS_PORT: 5432
