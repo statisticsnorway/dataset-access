@@ -172,7 +172,8 @@ public class Application {
 
     public Application stop() {
         try {
-            get(WebServer.class).shutdown().toCompletableFuture().get(2, TimeUnit.SECONDS);
+            get(WebServer.class).shutdown().thenCombine(get(GrpcServer.class).shutdown(), ((webServer, grpcServer) -> this))
+                    .toCompletableFuture().get(2, TimeUnit.SECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             throw new RuntimeException(e);
         }
