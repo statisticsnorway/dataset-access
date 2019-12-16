@@ -35,6 +35,7 @@ module no.ssb.datasetaccess {
     requires java.sql; // required by flyway
     requires io.helidon.microprofile.config; // metrics uses provider org.eclipse.microprofile.config.spi.ConfigProviderResolver
     requires perfmark.api; // needed by grpc-client
+    requires javax.inject; // required by io.helidon.grpc.server
 
     opens no.ssb.datasetaccess to com.fasterxml.jackson.databind;
     opens no.ssb.datasetaccess.access to com.fasterxml.jackson.databind;
