@@ -123,8 +123,8 @@ public class AccessService extends AuthServiceGrpc.AuthServiceImplBase implement
         DatasetState state = DatasetState.valueOf(request.getState());
         hasAccess(userId, privilege, namespace, valuation, state)
                 .orTimeout(10, TimeUnit.SECONDS)
-                .thenRun(() -> {
-                    responseObserver.onNext(AccessCheckResponse.newBuilder().setAllowed(true).build());
+                .thenAccept(access -> {
+                    responseObserver.onNext(AccessCheckResponse.newBuilder().setAllowed(access).build());
                     responseObserver.onCompleted();
                 })
                 .exceptionally(throwable -> {
