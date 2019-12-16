@@ -123,9 +123,10 @@ services:
     image: postgres:12-alpine
     ports:
       - 5432
-    command:
-      - cp ./init-db.sql /docker-entrypoint-initdb.d/init.sql
-      - /usr/local/bin/docker-entrypoint.sh postgres
+    environment:
+      POSTGRES_PASSWORD: rdc
+      POSTGRES_USER: rdc
+      POSTGRES_DB: rdc
 
 ---
 kind: secret
