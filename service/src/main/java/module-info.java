@@ -34,6 +34,7 @@ module no.ssb.datasetaccess {
     requires jdk.naming.dns; // required by netty dns libraries used by reactive postgres
     requires java.sql; // required by flyway
     requires io.helidon.microprofile.config; // metrics uses provider org.eclipse.microprofile.config.spi.ConfigProviderResolver
+    requires perfmark.api; // needed by grpc-client
 
     opens no.ssb.datasetaccess to com.fasterxml.jackson.databind;
     opens no.ssb.datasetaccess.access to com.fasterxml.jackson.databind;

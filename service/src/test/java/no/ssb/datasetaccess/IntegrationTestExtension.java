@@ -1,7 +1,16 @@
 package no.ssb.datasetaccess;
 
+import io.grpc.Channel;
+import io.grpc.LoadBalancerRegistry;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
+import io.grpc.NameResolverRegistry;
+import io.grpc.internal.DnsNameResolverProvider;
+import io.grpc.internal.PickFirstLoadBalancerProvider;
+import io.grpc.services.internal.HealthCheckingRoundRobinLoadBalancerProvider;
 import io.helidon.config.Config;
 import io.helidon.config.spi.ConfigSource;
+import io.helidon.grpc.server.GrpcServer;
 import io.helidon.webserver.WebServer;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
@@ -22,6 +31,7 @@ public class IntegrationTestExtension implements BeforeEachCallback, BeforeAllCa
 
     Application application;
     TestClient client;
+    ManagedChannel grpcChannel;
 
     @Override
     public void beforeAll(ExtensionContext context) throws Exception {
@@ -46,6 +56,19 @@ public class IntegrationTestExtension implements BeforeEachCallback, BeforeAllCa
         application = new Application(Config.builder().sources(configSourceSupplierList).build());
         application.start().toCompletableFuture().get(5, TimeUnit.SECONDS);
         client = TestClient.newClient("localhost", application.get(WebServer.class).port());
+
+        // The shaded version of grpc from helidon does not include the service definition for
+        // PickFirstLoadBalancerProvider. This result in LoadBalancerRegistry not being able to
+        // find it. We register them manually here.
+        LoadBalancerRegistry.getDefaultRegistry().register(new PickFirstLoadBalancerProvider());
+        LoadBalancerRegistry.getDefaultRegistry().register(new HealthCheckingRoundRobinLoadBalancerProvider());
+
+        // The same thing happens with the name resolvers.
+        NameResolverRegistry.getDefaultRegistry().register(new DnsNameResolverProvider());
+
+        grpcChannel = ManagedChannelBuilder.forAddress("localhost", application.get(GrpcServer.class).port())
+                .usePlaintext()
+                .build();
     }
 
     @Override
@@ -53,8 +76,11 @@ public class IntegrationTestExtension implements BeforeEachCallback, BeforeAllCa
         Object test = context.getRequiredTestInstance();
         Field[] fields = test.getClass().getDeclaredFields();
         for (Field field : fields) {
+            if (!field.isAnnotationPresent(Inject.class)) {
+                continue;
+            }
             // application
-            if (field.isAnnotationPresent(Inject.class) && Application.class.isAssignableFrom(field.getType())) {
+            if (Application.class.isAssignableFrom(field.getType())) {
                 try {
                     field.setAccessible(true);
                     if (field.get(test) == null) {
@@ -64,12 +90,23 @@ public class IntegrationTestExtension implements BeforeEachCallback, BeforeAllCa
                     throw new RuntimeException(e);
                 }
             }
-            // test client
-            if (field.isAnnotationPresent(Inject.class) && TestClient.class.isAssignableFrom(field.getType())) {
+            // Http test client
+            if (TestClient.class.isAssignableFrom(field.getType())) {
                 try {
                     field.setAccessible(true);
                     if (field.get(test) == null) {
                         field.set(test, client);
+                    }
+                } catch (IllegalAccessException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            // Grpc client channel
+            if (Channel.class.isAssignableFrom(field.getType()) || ManagedChannel.class.isAssignableFrom(field.getType())) {
+                try {
+                    field.setAccessible(true);
+                    if (field.get(test) == null) {
+                        field.set(test, grpcChannel);
                     }
                 } catch (IllegalAccessException e) {
                     throw new RuntimeException(e);
@@ -81,5 +118,20 @@ public class IntegrationTestExtension implements BeforeEachCallback, BeforeAllCa
     @Override
     public void afterAll(ExtensionContext context) throws Exception {
         application.stop();
+        shutdownAndAwaitTermination(grpcChannel);
+    }
+
+    void shutdownAndAwaitTermination(ManagedChannel managedChannel) {
+        managedChannel.shutdown();
+        try {
+            if (!managedChannel.awaitTermination(5, TimeUnit.SECONDS)) {
+                managedChannel.shutdownNow(); // Cancel currently executing tasks
+                if (!managedChannel.awaitTermination(5, TimeUnit.SECONDS))
+                    System.err.println("ManagedChannel did not terminate");
+            }
+        } catch (InterruptedException ie) {
+            managedChannel.shutdownNow(); // (Re-)Cancel if current thread also interrupted
+            Thread.currentThread().interrupt();
+        }
     }
 }
