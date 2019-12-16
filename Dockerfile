@@ -15,7 +15,7 @@ ENV JAVA_HOME=/jdk
 # Build stripped JVM
 #
 RUN ["jlink", "--strip-debug", "--no-header-files", "--no-man-pages", "--compress=2", "--module-path", "/jdk/jmods", "--output", "/linked",\
- "--add-modules", "java.base,jdk.management.agent,jdk.unsupported,java.sql,jdk.zipfs,jdk.naming.dns,java.desktop,java.net.http"]
+ "--add-modules", "java.base,java.management,jdk.unsupported,java.sql,jdk.zipfs,jdk.naming.dns,java.desktop,java.net.http"]
 
 #
 # Build Application image
@@ -38,4 +38,4 @@ WORKDIR /app
 
 EXPOSE 8080
 
-CMD ["java", "-Dcom.sun.management.jmxremote", "-p", "/app/lib", "-m", "no.ssb.datasetaccess/no.ssb.datasetaccess.Application"]
+CMD ["java", "-p", "/app/lib", "-m", "no.ssb.datasetaccess/no.ssb.datasetaccess.Application"]
