@@ -70,7 +70,7 @@ steps:
     image: maven:3-jdk-11
     commands:
       - cd protobuf
-      - mvn clean deploy -P ssb-bip, -DskipTests=true -Djdk.tls.client.protocols="TLSv1.2" -Dmaven.repo.local=/drone/src/.m2/repository --batch-mode --global-settings settings.xml
+      - mvn clean deploy -P ssb-bip, -DskipTests=true -Djdk.tls.client.protocols="TLSv1.2" -Dmaven.repo.local=/drone/src/.m2/repository --batch-mode --global-settings /drone/src/settings.xml
     depends_on:
       - test
 
