@@ -69,7 +69,8 @@ steps:
   - name: publish-maven-protobuf-api
     image: maven:3-jdk-11
     commands:
-      - mvn deploy -pl protobuf -P ssb-bip, -DskipTests=true -Djdk.tls.client.protocols="TLSv1.2" -Dmaven.repo.local=/drone/src/.m2/repository --batch-mode --global-settings settings.xml
+      - cd protobuf
+      - mvn clean deploy -P ssb-bip, -DskipTests=true -Djdk.tls.client.protocols="TLSv1.2" -Dmaven.repo.local=/drone/src/.m2/repository --batch-mode --global-settings settings.xml
     depends_on:
       - test
 
