@@ -1,5 +1,0 @@
-profile: service
-defaultPackage: dataset.access
----
-testFramework: junit
-sourceLanguage: java
