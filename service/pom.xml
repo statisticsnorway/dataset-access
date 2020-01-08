@@ -4,13 +4,13 @@
     <parent>
         <groupId>io.helidon.applications</groupId>
         <artifactId>helidon-se</artifactId>
-        <version>1.4.0</version>
+        <version>1.4.1</version>
         <relativePath/>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>no.ssb.dapla.auth.dataset</groupId>
     <artifactId>dapla-auth-dataset-service</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.1-SNAPSHOT</version>
     <properties>
         <jdk.version>11</jdk.version>
         <maven.compiler.release>${jdk.version}</maven.compiler.release>
@@ -62,7 +62,7 @@
         <dependency>
             <groupId>no.ssb.dapla.auth.dataset</groupId>
             <artifactId>dapla-auth-dataset-protobuf</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
+            <version>0.1-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>io.helidon.webserver</groupId>

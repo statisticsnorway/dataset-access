@@ -5,14 +5,14 @@
 
     <groupId>no.ssb.dapla.auth.dataset</groupId>
     <artifactId>dapla-auth-dataset-protobuf</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.1-SNAPSHOT</version>
     <packaging>multi-release-jar</packaging>
     <name>${project.artifactId}</name>
 
     <parent>
         <groupId>io.helidon.applications</groupId>
         <artifactId>helidon-se</artifactId>
-        <version>1.4.0</version>
+        <version>1.4.1</version>
         <relativePath/>
     </parent>
 
