@@ -20,7 +20,7 @@
         <exec.mainClass>no.ssb.datasetaccess.Application</exec.mainClass>
         <maven-surefire-plugin.version>2.19.1</maven-surefire-plugin.version>
         <maven-failsafe-plugin.version>2.19.1</maven-failsafe-plugin.version>
-        <slf4j.version>1.7.29</slf4j.version>
+        <slf4j.version>1.7.30</slf4j.version>
     </properties>
 
     <dependencyManagement>
