@@ -1,5 +1,6 @@
 package no.ssb.datasetaccess.user;
 
+import no.ssb.dapla.auth.dataset.protobuf.User;
 import no.ssb.datasetaccess.Application;
 import no.ssb.datasetaccess.IntegrationTestExtension;
 import no.ssb.datasetaccess.JacksonUtils;
@@ -10,7 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import javax.inject.Inject;
-import java.util.Set;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -32,10 +33,10 @@ class UserServiceTest {
         application.get(UserRepository.class).deleteAllUsers().get(3, TimeUnit.SECONDS);
     }
 
-    User createUser(String userId, Set<String> roles) {
+    User createUser(String userId, Iterable<String> roles) {
         try {
-            User user = new User(userId, roles);
-            application.get(UserRepository.class).createUser(user).get(3, TimeUnit.SECONDS);
+            User user = User.newBuilder().setUserId(userId).addAllRoles(roles).build();
+            application.get(UserRepository.class).createOrUpdateUser(user).get(3, TimeUnit.SECONDS);
             return user;
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             throw new RuntimeException(e);
@@ -48,7 +49,7 @@ class UserServiceTest {
 
     @Test
     void thatGetUserWorks() {
-        User expected = createUser("john", Set.of("reader"));
+        User expected = createUser("john", List.of("reader"));
         User actual = JacksonUtils.toPojo(client.get("/user/john").expect200Ok().body(), User.class);
         assertEquals(expected, actual);
     }
@@ -60,7 +61,7 @@ class UserServiceTest {
 
     @Test
     void thatPutWorks() {
-        User expected = new User("john", Set.of("reader"));
+        User expected = User.newBuilder().setUserId("john").addRoles("reader").build();
         ResponseHelper<String> helper = client.put("/user/john", expected).expect201Created();
         assertEquals("/user/john", helper.response().headers().firstValue("Location").orElseThrow());
         User user = getUser("john");
@@ -69,18 +70,18 @@ class UserServiceTest {
 
     @Test
     void thatUpsertWorks() {
-        User upsert_user = new User("upsert_john", Set.of("reader"));
+        User upsert_user = User.newBuilder().setUserId("upsert_john").addRoles("reader").build();
         client.put("/user/upsert_john", upsert_user).expect201Created();
         User user1 = getUser("upsert_john");
-        assertEquals(Set.of("reader"), user1.getRoles());
-        client.put("/user/upsert_john", new User("upsert_john", Set.of("reader", "writer"))).expect201Created();
+        assertEquals(List.of("reader"), user1.getRolesList());
+        client.put("/user/upsert_john", User.newBuilder().setUserId("upsert_john").addAllRoles(List.of("reader", "writer")).build()).expect201Created();
         User user2 = getUser("upsert_john");
-        assertEquals(Set.of("reader", "writer"), user2.getRoles());
+        assertEquals(List.of("reader", "writer"), user2.getRolesList());
     }
 
     @Test
     void thatDeleteUserWorks() {
-        createUser("user_to_be_deleted", Set.of("some_role", "any_role"));
+        createUser("user_to_be_deleted", List.of("some_role", "any_role"));
         client.delete("/user/user_to_be_deleted").expect200Ok();
         assertNull(getUser("user_to_be_deleted"));
     }

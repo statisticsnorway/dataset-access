@@ -1,22 +1,21 @@
 package no.ssb.datasetaccess.access;
 
+import no.ssb.dapla.auth.dataset.protobuf.Role;
+import no.ssb.dapla.auth.dataset.protobuf.Role.DatasetState;
+import no.ssb.dapla.auth.dataset.protobuf.Role.Privilege;
+import no.ssb.dapla.auth.dataset.protobuf.Role.Valuation;
+import no.ssb.dapla.auth.dataset.protobuf.User;
 import no.ssb.datasetaccess.Application;
 import no.ssb.datasetaccess.IntegrationTestExtension;
 import no.ssb.datasetaccess.TestClient;
-import no.ssb.datasetaccess.dataset.DatasetState;
-import no.ssb.datasetaccess.dataset.Valuation;
-import no.ssb.datasetaccess.role.Privilege;
-import no.ssb.datasetaccess.role.Role;
 import no.ssb.datasetaccess.role.RoleRepository;
-import no.ssb.datasetaccess.user.User;
 import no.ssb.datasetaccess.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import javax.inject.Inject;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -39,19 +38,25 @@ class AccessServiceTest {
         ).get(3, TimeUnit.SECONDS);
     }
 
-    void createUser(String userId, Set<String> roles) {
+    void createUser(String userId, Iterable<String> roles) {
         try {
-            User user = new User(userId, roles);
-            application.get(UserRepository.class).createUser(user).get(3, TimeUnit.SECONDS);
+            User user = User.newBuilder().setUserId(userId).addAllRoles(roles).build();
+            application.get(UserRepository.class).createOrUpdateUser(user).get(3, TimeUnit.SECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             throw new RuntimeException(e);
         }
     }
 
-    void createRole(String roleId, Set<Privilege> privileges, Set<String> namespacePrefixes, Valuation maxValuation, Set<DatasetState> states) {
-        Role role = new Role(roleId, privileges, new TreeSet<>(namespacePrefixes), maxValuation, states);
+    void createRole(String roleId, Iterable<Privilege> privileges, Iterable<String> namespacePrefixes, Valuation maxValuation, Iterable<DatasetState> states) {
+        Role role = Role.newBuilder()
+                .setRoleId(roleId)
+                .addAllPrivileges(privileges)
+                .addAllNamespacePrefixes(namespacePrefixes)
+                .setMaxValuation(maxValuation)
+                .addAllStates(states)
+                .build();
         try {
-            application.get(RoleRepository.class).createRole(role).get(3, TimeUnit.SECONDS);
+            application.get(RoleRepository.class).createOrUpdateRole(role).get(3, TimeUnit.SECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             throw new RuntimeException(e);
         }
@@ -59,28 +64,28 @@ class AccessServiceTest {
 
     @Test
     void thatGetAccessWorks() {
-        createUser("john_can_update", Set.of("updater"));
-        createRole("updater", Set.of(Privilege.UPDATE), Set.of("/ns/test"), Valuation.INTERNAL, Set.of(DatasetState.RAW, DatasetState.INPUT));
+        createUser("john_can_update", List.of("updater"));
+        createRole("updater", List.of(Privilege.UPDATE), List.of("/ns/test"), Valuation.INTERNAL, List.of(DatasetState.RAW, DatasetState.INPUT));
         client.get("/access/john_can_update?privilege=UPDATE&namespace=/ns/test&valuation=INTERNAL&state=RAW").expect200Ok();
     }
 
     @Test
     void GetAccessWhenUserDoesntHaveTheAppropriateNamespaceReturns403() {
-        createUser("john_with_missing_ns", Set.of("creator"));
-        createRole("creator", Set.of(Privilege.CREATE), Set.of("/ns/test/a", "/test"), Valuation.OPEN, Set.of(DatasetState.OTHER));
+        createUser("john_with_missing_ns", List.of("creator"));
+        createRole("creator", List.of(Privilege.CREATE), List.of("/ns/test/a", "/test"), Valuation.OPEN, List.of(DatasetState.OTHER));
         client.get("/access/john_with_missing_ns?privilege=CREATE&namespace=/ns/test&valuation=OPEN&state=OTHER").expect403Forbidden();
     }
 
     @Test
     void thatGetAccessWhenUserDoesntHaveTheAppropriatePrivilegeReturns403() {
-        createUser("john_cant_delete", Set.of("updater"));
-        createRole("updater", Set.of(Privilege.UPDATE), Set.of("/ns/test"), Valuation.SHIELDED, Set.of(DatasetState.PROCESSED));
+        createUser("john_cant_delete", List.of("updater"));
+        createRole("updater", List.of(Privilege.UPDATE), List.of("/ns/test"), Valuation.SHIELDED, List.of(DatasetState.PROCESSED));
         client.get("/access/john_cant_delete?privilege=DELETE&namespace=/ns/test&valuation=SHIELDED&state=PROCESSED").expect403Forbidden();
     }
 
     @Test
     void thatGetAccessOnUserWithoutAppropriateRolesReturns403() {
-        createUser("john_without_roles", Set.of("reader"));
+        createUser("john_without_roles", List.of("reader"));
         client.get("/access/john_without_roles?privilege=DELETE&namespace=test&valuation=SENSITIVE&state=RAW").expect403Forbidden();
     }
 
@@ -91,9 +96,9 @@ class AccessServiceTest {
 
     @Test
     void thatGetAccessForUserWithMoreThanOneRoleWorks() {
-        createUser("john_two_roles", Set.of("updater", "reader"));
-        createRole("updater", Set.of(Privilege.UPDATE), Set.of("/ns/test"), Valuation.INTERNAL, Set.of(DatasetState.RAW, DatasetState.INPUT));
-        createRole("reader", Set.of(Privilege.READ), Set.of("/ns/test"), Valuation.INTERNAL, Set.of(DatasetState.RAW, DatasetState.INPUT));
+        createUser("john_two_roles", List.of("updater", "reader"));
+        createRole("updater", List.of(Privilege.UPDATE), List.of("/ns/test"), Valuation.INTERNAL, List.of(DatasetState.RAW, DatasetState.INPUT));
+        createRole("reader", List.of(Privilege.READ), List.of("/ns/test"), Valuation.INTERNAL, List.of(DatasetState.RAW, DatasetState.INPUT));
         client.get("/access/john_two_roles?privilege=UPDATE&namespace=/ns/test&valuation=INTERNAL&state=RAW").expect200Ok();
         client.get("/access/john_two_roles?privilege=READ&namespace=/ns/test&valuation=INTERNAL&state=RAW").expect200Ok();
         client.get("/access/john_two_roles?privilege=DELETE&namespace=/ns/test&valuation=INTERNAL&state=RAW").expect403Forbidden();

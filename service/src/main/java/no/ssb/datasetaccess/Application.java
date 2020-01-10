@@ -7,7 +7,6 @@ import io.helidon.config.spi.ConfigSource;
 import io.helidon.grpc.server.GrpcRouting;
 import io.helidon.grpc.server.GrpcServer;
 import io.helidon.grpc.server.GrpcServerConfiguration;
-import io.helidon.media.jackson.server.JacksonSupport;
 import io.helidon.metrics.MetricsSupport;
 import io.helidon.webserver.Routing;
 import io.helidon.webserver.ServerConfiguration;
@@ -23,6 +22,7 @@ import no.ssb.datasetaccess.role.RoleRepository;
 import no.ssb.datasetaccess.role.RoleService;
 import no.ssb.datasetaccess.user.UserRepository;
 import no.ssb.datasetaccess.user.UserService;
+import no.ssb.helidon.media.protobuf.ProtobufJsonSupport;
 import org.flywaydb.core.Flyway;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -114,7 +114,7 @@ public class Application {
 
         // routing
         Routing routing = Routing.builder()
-                .register(JacksonSupport.create())
+                .register(ProtobufJsonSupport.create())
                 .register(MetricsSupport.create())
                 .register(health)
                 .register("/role", new RoleService(roleRepository))

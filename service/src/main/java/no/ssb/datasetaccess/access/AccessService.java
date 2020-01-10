@@ -12,10 +12,7 @@ import io.helidon.webserver.Service;
 import no.ssb.dapla.auth.dataset.protobuf.AccessCheckRequest;
 import no.ssb.dapla.auth.dataset.protobuf.AccessCheckResponse;
 import no.ssb.dapla.auth.dataset.protobuf.AuthServiceGrpc;
-import no.ssb.datasetaccess.dataset.DatasetState;
-import no.ssb.datasetaccess.dataset.Valuation;
-import no.ssb.datasetaccess.role.Privilege;
-import no.ssb.datasetaccess.role.Role;
+import no.ssb.dapla.auth.dataset.protobuf.Role;
 import no.ssb.datasetaccess.role.RoleRepository;
 import no.ssb.datasetaccess.user.UserRepository;
 import org.eclipse.microprofile.metrics.Counter;
@@ -24,6 +21,8 @@ import org.eclipse.microprofile.metrics.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.NavigableSet;
+import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -50,10 +49,10 @@ public class AccessService extends AuthServiceGrpc.AuthServiceImplBase implement
 
     private void doGet(ServerRequest req, ServerResponse res) {
         String userId = req.path().param("userId");
-        Privilege privilege = Privilege.valueOf(req.queryParams().first("privilege").orElseThrow());
+        Role.Privilege privilege = Role.Privilege.valueOf(req.queryParams().first("privilege").orElseThrow());
         String namespace = req.queryParams().first("namespace").orElseThrow();
-        Valuation valuation = Valuation.valueOf(req.queryParams().first("valuation").orElseThrow());
-        DatasetState state = DatasetState.valueOf(req.queryParams().first("state").orElseThrow());
+        Role.Valuation valuation = Role.Valuation.valueOf(req.queryParams().first("valuation").orElseThrow());
+        Role.DatasetState state = Role.DatasetState.valueOf(req.queryParams().first("state").orElseThrow());
         Timer.Context timerContext = accessTimer.time();
         hasAccess(userId, privilege, namespace, valuation, state)
                 .orTimeout(10, TimeUnit.SECONDS)
@@ -77,29 +76,32 @@ public class AccessService extends AuthServiceGrpc.AuthServiceImplBase implement
                 });
     }
 
-    public CompletableFuture<Boolean> hasAccess(String userId, Privilege privilege, String namespace, Valuation valuation, DatasetState state) {
+    public CompletableFuture<Boolean> hasAccess(String userId, Role.Privilege privilege, String namespace, Role.Valuation valuation, Role.DatasetState state) {
         CompletableFuture<Boolean> future = new CompletableFuture<>();
         userRepository.getUser(userId).thenAccept(user -> {
             if (user == null) {
                 future.complete(false);
                 return;
             }
-            roleRepository.getRoles(user.getRoles()).thenAccept(roles -> {
+            roleRepository.getRoles(user.getRolesList()).thenAccept(roles -> {
                 for (Role role : roles) {
                     if (role == null) {
                         continue;
                     }
-                    if (!role.getPrivileges().contains(privilege)) {
+                    if (!role.getPrivilegesList().contains(privilege)) {
                         continue;
                     }
-                    String floor = role.getNamespacePrefixes().floor(namespace);
+                    NavigableSet<String> namespacePrefixes = new TreeSet<>(role.getNamespacePrefixesList());
+                    String floor = namespacePrefixes.floor(namespace);
                     if (floor == null || !namespace.startsWith(floor)) {
                         continue;
                     }
-                    if (!role.getMaxValuation().grantsAccessTo(valuation)) {
+                    InternalValuation maxInternalValuation = InternalValuation.valueOf(role.getMaxValuation().name());
+                    InternalValuation internalValuation = InternalValuation.valueOf(valuation.name());
+                    if (!maxInternalValuation.grantsAccessTo(internalValuation)) {
                         continue;
                     }
-                    if (!role.getStates().contains(state)) {
+                    if (!role.getStatesList().contains(state)) {
                         continue;
                     }
                     future.complete(true);
@@ -117,10 +119,10 @@ public class AccessService extends AuthServiceGrpc.AuthServiceImplBase implement
     @Override
     public void hasAccess(AccessCheckRequest request, StreamObserver<AccessCheckResponse> responseObserver) {
         String userId = request.getUserId();
-        Privilege privilege = Privilege.valueOf(request.getPrivilege());
+        Role.Privilege privilege = Role.Privilege.valueOf(request.getPrivilege());
         String namespace = request.getNamespace();
-        Valuation valuation = Valuation.valueOf(request.getValuation());
-        DatasetState state = DatasetState.valueOf(request.getState());
+        Role.Valuation valuation = Role.Valuation.valueOf(request.getValuation());
+        Role.DatasetState state = Role.DatasetState.valueOf(request.getState());
         hasAccess(userId, privilege, namespace, valuation, state)
                 .orTimeout(10, TimeUnit.SECONDS)
                 .thenAccept(access -> {

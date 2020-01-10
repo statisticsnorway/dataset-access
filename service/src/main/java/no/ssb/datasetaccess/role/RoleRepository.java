@@ -2,12 +2,15 @@ package no.ssb.datasetaccess.role;
 
 
 import io.helidon.metrics.RegistryFactory;
+import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonObject;
 import io.vertx.pgclient.PgPool;
 import io.vertx.sqlclient.Row;
 import io.vertx.sqlclient.RowIterator;
 import io.vertx.sqlclient.RowSet;
 import io.vertx.sqlclient.Tuple;
+import no.ssb.dapla.auth.dataset.protobuf.Role;
+import no.ssb.helidon.media.protobuf.ProtobufJsonUtils;
 import org.eclipse.microprofile.metrics.Counter;
 import org.eclipse.microprofile.metrics.MetricRegistry;
 import org.slf4j.Logger;
@@ -36,20 +39,25 @@ public class RoleRepository {
     public CompletableFuture<Role> getRole(String roleId) {
         CompletableFuture<Role> future = new CompletableFuture<>();
         client.preparedQuery("SELECT roleId, document FROM role WHERE roleId = $1", Tuple.of(roleId), ar -> {
-            if (!ar.succeeded()) {
-                future.completeExceptionally(ar.cause());
-                return;
+            try {
+                if (!ar.succeeded()) {
+                    future.completeExceptionally(ar.cause());
+                    return;
+                }
+                RowSet<Row> result = ar.result();
+                RowIterator<Row> iterator = result.iterator();
+                if (!iterator.hasNext()) {
+                    future.complete(null);
+                    return;
+                }
+                Row row = iterator.next();
+                String json = Json.encode(row.get(JsonObject.class, 1));
+                Role role = ProtobufJsonUtils.toPojo(json, Role.class);
+                future.complete(role);
+                rolesReadCount.inc();
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
             }
-            RowSet<Row> result = ar.result();
-            RowIterator<Row> iterator = result.iterator();
-            if (!iterator.hasNext()) {
-                future.complete(null);
-                return;
-            }
-            Row row = iterator.next();
-            Role role = Role.fromVertxJson(row.get(JsonObject.class, 1));
-            future.complete(role);
-            rolesReadCount.inc();
         });
         return future;
     }
@@ -73,39 +81,49 @@ public class RoleRepository {
         }
         sb.append(") ORDER BY roleId");
         client.preparedQuery(sb.toString(), arguments, ar -> {
-            if (!ar.succeeded()) {
-                future.completeExceptionally(ar.cause());
-                return;
+            try {
+                if (!ar.succeeded()) {
+                    future.completeExceptionally(ar.cause());
+                    return;
+                }
+                RowSet<Row> result = ar.result();
+                List<Role> roles = new ArrayList<>(result.rowCount());
+                RowIterator<Row> iterator = result.iterator();
+                if (!iterator.hasNext()) {
+                    future.complete(Collections.emptyList());
+                    return;
+                }
+                while (iterator.hasNext()) {
+                    Row row = iterator.next();
+                    String json = Json.encode(row.get(JsonObject.class, 1));
+                    Role role = ProtobufJsonUtils.toPojo(json, Role.class);
+                    roles.add(role);
+                }
+                future.complete(roles);
+                rolesReadCount.inc(result.rowCount());
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
             }
-            RowSet<Row> result = ar.result();
-            List<Role> roles = new ArrayList<>(result.rowCount());
-            RowIterator<Row> iterator = result.iterator();
-            if (!iterator.hasNext()) {
-                future.complete(Collections.emptyList());
-                return;
-            }
-            while (iterator.hasNext()) {
-                Row row = iterator.next();
-                Role role = Role.fromVertxJson(row.get(JsonObject.class, 1));
-                roles.add(role);
-            }
-            future.complete(roles);
-            rolesReadCount.inc(result.rowCount());
         });
         return future;
     }
 
-    public CompletableFuture<Void> createRole(Role role) {
+    public CompletableFuture<Void> createOrUpdateRole(Role role) {
         CompletableFuture<Void> future = new CompletableFuture<>();
-        Tuple arguments = Tuple.tuple().addString(role.roleId).addValue(Role.toVertxJsonObject(role));
+        JsonObject jsonObject = (JsonObject) Json.decodeValue(ProtobufJsonUtils.toString(role));
+        Tuple arguments = Tuple.tuple().addString(role.getRoleId()).addValue(jsonObject);
         client.preparedQuery("INSERT INTO role (roleId, document) VALUES($1, $2) ON CONFLICT (roleId) DO UPDATE SET document = $2",
                 arguments, ar -> {
-                    if (!ar.succeeded()) {
-                        future.completeExceptionally(ar.cause());
-                        return;
+                    try {
+                        if (!ar.succeeded()) {
+                            future.completeExceptionally(ar.cause());
+                            return;
+                        }
+                        future.complete(null);
+                        rolesCreatedOrUpdatedCount.inc();
+                    } catch (Throwable t) {
+                        future.completeExceptionally(t);
                     }
-                    future.complete(null);
-                    rolesCreatedOrUpdatedCount.inc();
                 });
         return future;
     }
@@ -113,26 +131,34 @@ public class RoleRepository {
     public CompletableFuture<Void> deleteRole(String roleId) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         client.preparedQuery("DELETE FROM role WHERE roleId = $1", Tuple.of(roleId), ar -> {
-            if (!ar.succeeded()) {
-                future.completeExceptionally(ar.cause());
-                return;
+            try {
+                if (!ar.succeeded()) {
+                    future.completeExceptionally(ar.cause());
+                    return;
+                }
+                future.complete(null);
+                rolesDeletedCount.inc();
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
             }
-            future.complete(null);
-            rolesDeletedCount.inc();
         });
         return future;
     }
 
     public CompletableFuture<Void> deleteAllRoles() {
         CompletableFuture<Void> future = new CompletableFuture<>();
-        client.query("DELETE FROM role", ar -> {
-            if (!ar.succeeded()) {
-                future.completeExceptionally(ar.cause());
-                return;
+        client.query("TRUNCATE TABLE role", ar -> {
+            try {
+                if (!ar.succeeded()) {
+                    future.completeExceptionally(ar.cause());
+                    return;
+                }
+                int rowsDeleted = ar.result().rowCount();
+                future.complete(null);
+                rolesDeletedCount.inc(rowsDeleted);
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
             }
-            int rowsDeleted = ar.result().rowCount();
-            future.complete(null);
-            rolesDeletedCount.inc(rowsDeleted);
         });
         return future;
     }

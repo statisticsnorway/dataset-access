@@ -18,3 +18,93 @@ message AccessCheckRequest {
 message AccessCheckResponse {
     bool allowed = 1;
 }
+
+service UserService {
+    rpc getUser (UserGetRequest) returns (UserGetResponse);
+    rpc putUser (UserPutRequest) returns (UserPutResponse);
+    rpc deleteUser (UserDeleteRequest) returns (UserDeleteResponse);
+}
+
+message User {
+    string userId = 1;
+    repeated string roles = 2;
+}
+
+message UserGetRequest {
+    string userId = 1;
+}
+
+message UserGetResponse {
+    User user = 1;
+}
+
+message UserPutRequest {
+    User user = 1;
+}
+
+message UserPutResponse {
+}
+
+message UserDeleteRequest {
+    string userId = 1;
+}
+
+message UserDeleteResponse {
+}
+
+service RoleService {
+    rpc getRole (RoleGetRequest) returns (RoleGetResponse);
+    rpc putRole (RolePutRequest) returns (RolePutResponse);
+    rpc deleteRole (RoleDeleteRequest) returns (RoleDeleteResponse);
+}
+
+message Role {
+    string roleId = 1;
+    enum Privilege {
+        READ = 0;
+        CREATE = 1;
+        UPDATE = 2;
+        DELETE = 3;
+    }
+    repeated Privilege privileges = 3;
+    repeated string namespacePrefixes = 5;
+    enum Valuation {
+        OPEN = 0;
+        INTERNAL = 3;
+        SHIELDED = 6;
+        SENSITIVE = 9;
+    }
+    Valuation maxValuation = 7;
+    enum DatasetState {
+        RAW = 0;
+        INPUT = 1;
+        PROCESSED = 2;
+        OUTPUT = 3;
+        PRODUCT = 4;
+        OTHER = 5;
+    }
+    repeated DatasetState states = 9;
+}
+
+message RoleGetRequest {
+    string roleId = 1;
+}
+
+message RoleGetResponse {
+    Role role = 1;
+}
+
+message RolePutRequest {
+    Role role = 1;
+}
+
+message RolePutResponse {
+}
+
+message RoleDeleteRequest {
+    string roleId = 1;
+}
+
+message RoleDeleteResponse {
+}
+

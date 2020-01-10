@@ -1,6 +1,6 @@
-package no.ssb.datasetaccess.dataset;
+package no.ssb.datasetaccess.access;
 
-public enum Valuation {
+enum InternalValuation {
     OPEN(1),
     INTERNAL(2),
     SHIELDED(3),
@@ -8,11 +8,11 @@ public enum Valuation {
 
     private final int level;
 
-    private Valuation(int level) {
+    private InternalValuation(int level) {
         this.level = level;
     }
 
-    public boolean grantsAccessTo(Valuation other) {
+    boolean grantsAccessTo(InternalValuation other) {
         return level >= other.level;
     }
 }

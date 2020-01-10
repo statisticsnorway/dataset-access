@@ -21,6 +21,7 @@ module no.ssb.datasetaccess {
     requires io.helidon.health.checks;
 
     requires no.ssb.dapla.auth.dataset.protobuf;
+    requires no.ssb.helidon.media.protobuf.json.server;
     requires grpc.protobuf;
     requires io.helidon.grpc.server;
     requires java.logging;
@@ -35,11 +36,11 @@ module no.ssb.datasetaccess {
     requires java.sql; // required by flyway
     requires io.helidon.microprofile.config; // metrics uses provider org.eclipse.microprofile.config.spi.ConfigProviderResolver
     requires perfmark.api; // needed by grpc-client
-    requires javax.inject; // required by io.helidon.grpc.server
+    requires javax.inject;
+    requires com.google.protobuf.util; // required by io.helidon.grpc.server
 
     opens no.ssb.datasetaccess to com.fasterxml.jackson.databind;
     opens no.ssb.datasetaccess.access to com.fasterxml.jackson.databind;
-    opens no.ssb.datasetaccess.dataset to com.fasterxml.jackson.databind;
     opens no.ssb.datasetaccess.role to com.fasterxml.jackson.databind;
     opens no.ssb.datasetaccess.user to com.fasterxml.jackson.databind;
     opens no.ssb.datasetaccess.token to com.fasterxml.jackson.databind;

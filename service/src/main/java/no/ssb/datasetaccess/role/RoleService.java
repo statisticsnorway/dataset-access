@@ -7,6 +7,7 @@ import io.helidon.webserver.Routing;
 import io.helidon.webserver.ServerRequest;
 import io.helidon.webserver.ServerResponse;
 import io.helidon.webserver.Service;
+import no.ssb.dapla.auth.dataset.protobuf.Role;
 
 import java.util.concurrent.TimeUnit;
 
@@ -47,7 +48,7 @@ public class RoleService implements Service {
         if (!roleId.equals(role.getRoleId())) {
             res.status(Http.Status.BAD_REQUEST_400).send("roleId in path must match that in body");
         }
-        repository.createRole(role)
+        repository.createOrUpdateRole(role)
                 .orTimeout(30, TimeUnit.SECONDS)
                 .thenRun(() -> {
                     res.headers().add("Location", "/role/" + roleId);
