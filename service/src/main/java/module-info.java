@@ -45,4 +45,6 @@ module no.ssb.datasetaccess {
     opens no.ssb.datasetaccess.token to com.fasterxml.jackson.databind;
 
     opens db.migration; // flyway needs this to read migration files
+
+    exports no.ssb.datasetaccess; // allows running individual integration tests from IntelliJ
 }
