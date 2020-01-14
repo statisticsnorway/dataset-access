@@ -38,6 +38,7 @@ module no.ssb.datasetaccess {
     requires perfmark.api; // needed by grpc-client
     requires javax.inject;
     requires com.google.protobuf.util; // required by io.helidon.grpc.server
+    requires com.google.gson; // required by protobuf over http
 
     opens no.ssb.datasetaccess to com.fasterxml.jackson.databind;
     opens no.ssb.datasetaccess.access to com.fasterxml.jackson.databind;
