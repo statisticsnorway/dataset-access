@@ -28,7 +28,7 @@
             <id>ssb-bip-releases</id>
             <url>https://nexus.prod-bip-ci.ssb.no/repository/maven-public/</url>
             <snapshots>
-                <enabled>false</enabled>
+                <enabled>true</enabled>
             </snapshots>
         </repository>
     </repositories>
@@ -77,7 +77,7 @@
         <dependency>
             <groupId>no.ssb.helidon</groupId>
             <artifactId>helidon-media-protobuf-json-server</artifactId>
-            <version>0.1</version>
+            <version>0.2-SNAPSHOT</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.google.code.findbugs</groupId>
