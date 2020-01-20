@@ -1,9 +1,7 @@
 package no.ssb.datasetaccess;
 
 
-import ch.qos.logback.classic.util.ContextInitializer;
 import io.helidon.config.Config;
-import io.helidon.config.spi.ConfigSource;
 import io.helidon.grpc.server.GrpcRouting;
 import io.helidon.grpc.server.GrpcServer;
 import io.helidon.grpc.server.GrpcServerConfiguration;
@@ -22,53 +20,31 @@ import no.ssb.datasetaccess.role.RoleRepository;
 import no.ssb.datasetaccess.role.RoleService;
 import no.ssb.datasetaccess.user.UserRepository;
 import no.ssb.datasetaccess.user.UserService;
+import no.ssb.helidon.application.DefaultHelidonApplication;
+import no.ssb.helidon.application.HelidonApplication;
 import no.ssb.helidon.media.protobuf.ProtobufJsonSupport;
 import org.flywaydb.core.Flyway;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.bridge.SLF4JBridgeHandler;
 
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Supplier;
-import java.util.logging.LogManager;
 
-import static io.helidon.config.ConfigSources.classpath;
-import static io.helidon.config.ConfigSources.file;
-
-public class Application {
+public class Application extends DefaultHelidonApplication {
 
     private static final Logger LOG;
 
     static {
-        String logbackConfigurationFile = System.getenv("LOGBACK_CONFIGURATION_FILE");
-        if (logbackConfigurationFile != null) {
-            System.setProperty(ContextInitializer.CONFIG_FILE_PROPERTY, logbackConfigurationFile);
-        }
-        LogManager.getLogManager().reset();
-        SLF4JBridgeHandler.removeHandlersForRootLogger();
-        SLF4JBridgeHandler.install();
+        installSlf4jJulBridge();
         LOG = LoggerFactory.getLogger(Application.class);
     }
 
     public static void main(String[] args) {
         long startTime = System.currentTimeMillis();
-        List<Supplier<ConfigSource>> configSourceSupplierList = new LinkedList<>();
-        String overrideFile = System.getenv("HELIDON_CONFIG_FILE");
-        if (overrideFile != null) {
-            configSourceSupplierList.add(file(overrideFile).optional());
-        }
-        configSourceSupplierList.add(file("conf/application.yaml").optional());
-        configSourceSupplierList.add(classpath("application.yaml"));
-        Application application = new Application(Config.builder().sources(configSourceSupplierList).build());
-        application.start().toCompletableFuture().orTimeout(10, TimeUnit.SECONDS)
+        new ApplicationBuilder().build().start()
+                .toCompletableFuture().orTimeout(10, TimeUnit.SECONDS)
                 .thenAccept(app -> LOG.info("Webserver running at port: {}, Grpcserver running at port: {}, started in {} ms",
                         app.get(WebServer.class).port(), app.get(GrpcServer.class).port(), System.currentTimeMillis() - startTime))
                 .exceptionally(throwable -> {
@@ -76,16 +52,6 @@ public class Application {
                     System.exit(1);
                     return null;
                 });
-    }
-
-    private final Map<Class<?>, Object> instanceByType = new ConcurrentHashMap<>();
-
-    public <T> T put(Class<T> clazz, T instance) {
-        return (T) instanceByType.put(clazz, instance);
-    }
-
-    public <T> T get(Class<T> clazz) {
-        return (T) instanceByType.get(clazz);
     }
 
     public Application(Config config) {
@@ -165,18 +131,9 @@ public class Application {
         return PgPool.pool(connectOptions, poolOptions);
     }
 
-    public CompletionStage<Application> start() {
-        return get(WebServer.class).start()
-                .thenCombine(get(GrpcServer.class).start(), (webServer, grpcServer) -> this);
-    }
-
-    public Application stop() {
-        try {
-            get(WebServer.class).shutdown().thenCombine(get(GrpcServer.class).shutdown(), ((webServer, grpcServer) -> this))
-                    .toCompletableFuture().get(2, TimeUnit.SECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            throw new RuntimeException(e);
-        }
-        return this;
+    @Override
+    public CompletionStage<HelidonApplication> stop() {
+        return super.stop()
+                .thenCombine(CompletableFuture.runAsync(() -> get(PgPool.class).close()), (a, v) -> this);
     }
 }
