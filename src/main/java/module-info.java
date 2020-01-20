@@ -10,7 +10,6 @@ module no.ssb.datasetaccess {
     requires vertx.sql.client;
     requires io.helidon.webserver;
     requires io.helidon.config;
-    requires io.helidon.media.jackson.server;
     requires java.net.http;
     requires io.helidon.common.reactive;
     requires org.flywaydb.core;
