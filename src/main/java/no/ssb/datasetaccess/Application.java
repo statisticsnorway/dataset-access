@@ -44,7 +44,8 @@ public class Application extends DefaultHelidonApplication {
     public static void main(String[] args) {
         long startTime = System.currentTimeMillis();
         new ApplicationBuilder().build().start()
-                .toCompletableFuture().orTimeout(10, TimeUnit.SECONDS)
+                .toCompletableFuture()
+                .orTimeout(10, TimeUnit.SECONDS)
                 .thenAccept(app -> LOG.info("Webserver running at port: {}, Grpcserver running at port: {}, started in {} ms",
                         app.get(WebServer.class).port(), app.get(GrpcServer.class).port(), System.currentTimeMillis() - startTime))
                 .exceptionally(throwable -> {

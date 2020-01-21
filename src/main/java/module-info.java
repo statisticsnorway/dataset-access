@@ -1,3 +1,6 @@
+import no.ssb.datasetaccess.ApplicationBuilder;
+import no.ssb.helidon.application.HelidonApplicationBuilder;
+
 module no.ssb.datasetaccess {
     requires org.slf4j;
     requires jul.to.slf4j;
@@ -42,4 +45,6 @@ module no.ssb.datasetaccess {
     opens db.migration; // flyway needs this to read migration files
 
     exports no.ssb.datasetaccess; // allows running individual integration tests from IntelliJ
+
+    provides HelidonApplicationBuilder with ApplicationBuilder;
 }
