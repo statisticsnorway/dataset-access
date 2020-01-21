@@ -9,6 +9,7 @@ import io.helidon.metrics.MetricsSupport;
 import io.helidon.webserver.Routing;
 import io.helidon.webserver.ServerConfiguration;
 import io.helidon.webserver.WebServer;
+import io.helidon.webserver.accesslog.AccessLogSupport;
 import io.vertx.pgclient.PgConnectOptions;
 import io.vertx.pgclient.PgPool;
 import io.vertx.sqlclient.PoolOptions;
@@ -81,6 +82,7 @@ public class Application extends DefaultHelidonApplication {
 
         // routing
         Routing routing = Routing.builder()
+                .register(AccessLogSupport.create(config.get("webserver.access-log")))
                 .register(ProtobufJsonSupport.create())
                 .register(MetricsSupport.create())
                 .register(health)
