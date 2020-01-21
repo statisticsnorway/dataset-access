@@ -51,6 +51,9 @@ public class AccessService extends AuthServiceGrpc.AuthServiceImplBase implement
         String userId = req.path().param("userId");
         Role.Privilege privilege = Role.Privilege.valueOf(req.queryParams().first("privilege").orElseThrow());
         String namespace = req.queryParams().first("namespace").orElseThrow();
+        if (!namespace.startsWith("/")) {
+            namespace = "/" + namespace;
+        }
         Role.Valuation valuation = Role.Valuation.valueOf(req.queryParams().first("valuation").orElseThrow());
         Role.DatasetState state = Role.DatasetState.valueOf(req.queryParams().first("state").orElseThrow());
         Timer.Context timerContext = accessTimer.time();
