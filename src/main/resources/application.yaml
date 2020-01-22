@@ -23,7 +23,7 @@ flyway:
   password: rdc
 
 init:
-  db-connectivity-attempts: 3
+  db-connectivity-attempts: 120
 
 health:
   readiness:
