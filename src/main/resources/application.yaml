@@ -1,11 +1,11 @@
 webserver:
-  port: 8080
+  port: 10100
   host: "0.0.0.0"
   access-log:
     format: "%h %u %t %r %s %b %{Referer}i %T"
 
 grpcserver:
-  port: 7070
+  port: 10108
 
 pgpool:
   connect-options:
