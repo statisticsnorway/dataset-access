@@ -101,6 +101,7 @@ public class Application extends DefaultHelidonApplication {
         GrpcServer grpcServer = GrpcServer.create(
                 GrpcServerConfiguration.create(config.get("grpcserver")),
                 GrpcRouting.builder()
+                        .intercept(new LoggingInterceptor())
                         .register(accessService)
                         .build()
         );
