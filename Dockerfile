@@ -36,7 +36,7 @@ ENV PATH=/jdk/bin:$PATH
 
 WORKDIR /app
 
-EXPOSE 8080
-EXPOSE 7070
+EXPOSE 10100
+EXPOSE 10108
 
 CMD ["java", "-p", "/app/lib", "-m", "no.ssb.datasetaccess/no.ssb.datasetaccess.Application"]
