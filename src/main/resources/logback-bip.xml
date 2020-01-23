@@ -10,7 +10,7 @@
         </encoder>
     </appender>
 
-    <logger name="no.ssb.datasetaccess" level="info" additivity="false">
+    <logger name="no.ssb.datasetaccess" level="trace" additivity="false">
         <appender-ref ref="STDOUT"/>
     </logger>
 
