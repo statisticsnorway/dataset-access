@@ -22,6 +22,8 @@ module no.ssb.datasetaccess {
     requires io.helidon.metrics;
     requires io.helidon.health;
     requires io.helidon.health.checks;
+    requires io.helidon.tracing;
+    requires opentracing.grpc;
 
     requires no.ssb.dapla.auth.dataset.protobuf;
     requires no.ssb.helidon.media.protobuf.json.server;

@@ -3,9 +3,9 @@ package no.ssb.datasetaccess.user;
 import no.ssb.dapla.auth.dataset.protobuf.User;
 import no.ssb.datasetaccess.Application;
 import no.ssb.datasetaccess.IntegrationTestExtension;
-import no.ssb.datasetaccess.JacksonUtils;
 import no.ssb.datasetaccess.ResponseHelper;
 import no.ssb.datasetaccess.TestClient;
+import no.ssb.helidon.media.protobuf.ProtobufJsonUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 @ExtendWith(IntegrationTestExtension.class)
-class UserServiceTest {
+class UserHttpServiceTest {
 
     @Inject
     Application application;
@@ -50,7 +50,7 @@ class UserServiceTest {
     @Test
     void thatGetUserWorks() {
         User expected = createUser("john", List.of("reader"));
-        User actual = JacksonUtils.toPojo(client.get("/user/john").expect200Ok().body(), User.class);
+        User actual = ProtobufJsonUtils.toPojo(client.get("/user/john").expect200Ok().body(), User.class);
         assertEquals(expected, actual);
     }
 

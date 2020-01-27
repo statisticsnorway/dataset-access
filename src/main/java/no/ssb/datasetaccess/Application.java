@@ -1,26 +1,35 @@
 package no.ssb.datasetaccess;
 
 
+import io.grpc.MethodDescriptor;
 import io.helidon.config.Config;
 import io.helidon.grpc.server.GrpcRouting;
 import io.helidon.grpc.server.GrpcServer;
 import io.helidon.grpc.server.GrpcServerConfiguration;
+import io.helidon.grpc.server.GrpcTracingConfig;
+import io.helidon.grpc.server.ServerRequestAttribute;
 import io.helidon.metrics.MetricsSupport;
+import io.helidon.tracing.TracerBuilder;
 import io.helidon.webserver.Routing;
 import io.helidon.webserver.ServerConfiguration;
 import io.helidon.webserver.WebServer;
 import io.helidon.webserver.accesslog.AccessLogSupport;
+import io.opentracing.Tracer;
+import io.opentracing.contrib.grpc.OperationNameConstructor;
 import io.vertx.pgclient.PgConnectOptions;
 import io.vertx.pgclient.PgPool;
 import io.vertx.sqlclient.PoolOptions;
+import no.ssb.datasetaccess.access.AccessGrpcService;
+import no.ssb.datasetaccess.access.AccessHttpService;
 import no.ssb.datasetaccess.access.AccessService;
 import no.ssb.datasetaccess.health.Health;
 import no.ssb.datasetaccess.health.HealthAwarePgPool;
 import no.ssb.datasetaccess.health.ReadinessSample;
+import no.ssb.datasetaccess.role.RoleHttpService;
 import no.ssb.datasetaccess.role.RoleRepository;
-import no.ssb.datasetaccess.role.RoleService;
+import no.ssb.datasetaccess.user.UserHttpService;
 import no.ssb.datasetaccess.user.UserRepository;
-import no.ssb.datasetaccess.user.UserService;
+import no.ssb.helidon.application.AuthorizationInterceptor;
 import no.ssb.helidon.application.DefaultHelidonApplication;
 import no.ssb.helidon.application.HelidonApplication;
 import no.ssb.helidon.media.protobuf.ProtobufJsonSupport;
@@ -59,6 +68,9 @@ public class Application extends DefaultHelidonApplication {
     public Application(Config config) {
         put(Config.class, config);
 
+        TracerBuilder<?> tracerBuilder = TracerBuilder.create(config.get("tracing")).registerGlobal(true);
+        Tracer tracer = tracerBuilder.build();
+
         AtomicReference<ReadinessSample> lastReadySample = new AtomicReference<>(new ReadinessSample(false, System.currentTimeMillis()));
 
         // reactive postgres client
@@ -86,23 +98,41 @@ public class Application extends DefaultHelidonApplication {
                 .register(ProtobufJsonSupport.create())
                 .register(MetricsSupport.create())
                 .register(health)
-                .register("/role", new RoleService(roleRepository))
-                .register("/user", new UserService(userRepository))
-                .register("/access", accessService)
+                .register("/role", new RoleHttpService(roleRepository))
+                .register("/user", new UserHttpService(userRepository))
+                .register("/access", new AccessHttpService(accessService))
                 .build();
         put(Routing.class, routing);
 
         // web-server
-        ServerConfiguration configuration = ServerConfiguration.builder(config.get("webserver")).build();
-        WebServer webServer = WebServer.create(configuration, routing);
+        WebServer webServer = WebServer.create(
+                ServerConfiguration.builder(config.get("webserver"))
+                        .tracer(tracer)
+                        .build(),
+                routing);
         put(WebServer.class, webServer);
 
         // grpc-server
         GrpcServer grpcServer = GrpcServer.create(
-                GrpcServerConfiguration.create(config.get("grpcserver")),
+                GrpcServerConfiguration.builder(config.get("grpcserver"))
+                        .tracer(tracer)
+                        .tracingConfig(GrpcTracingConfig.builder()
+                                .withStreaming()
+                                .withVerbosity()
+                                .withOperationName(new OperationNameConstructor() {
+                                    @Override
+                                    public <ReqT, RespT> String constructOperationName(MethodDescriptor<ReqT, RespT> method) {
+                                        return "Grpc server received " + method.getFullMethodName();
+                                    }
+                                })
+                                .withTracedAttributes(ServerRequestAttribute.CALL_ATTRIBUTES,
+                                        ServerRequestAttribute.HEADERS,
+                                        ServerRequestAttribute.METHOD_NAME)
+                                .build()
+                        ),
                 GrpcRouting.builder()
-                        .intercept(new LoggingInterceptor())
-                        .register(accessService)
+                        .intercept(new AuthorizationInterceptor())
+                        .register(new AccessGrpcService(accessService))
                         .build()
         );
         put(GrpcServer.class, grpcServer);

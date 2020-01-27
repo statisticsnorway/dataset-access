@@ -9,7 +9,7 @@ grpcserver:
 
 pgpool:
   connect-options:
-    port: 15432
+    port: 25432
     host: localhost
     database: rdc
     user: rdc
@@ -18,7 +18,7 @@ pgpool:
     max-size: 5
 
 flyway:
-  url: jdbc:postgresql://localhost:15432/rdc
+  url: jdbc:postgresql://localhost:25432/rdc
   user: rdc
   password: rdc
 
@@ -28,3 +28,18 @@ init:
 health:
   readiness:
     idle-timeout: 2000
+
+tracing:
+  enabled: true
+  service: dataset-access
+  protocol: http
+  host: localhost
+  port: 14268
+  path: /api/traces
+  paths:
+    - path: "/favicon.ico"
+      enabled: false
+    - path: "/metrics"
+      enabled: false
+    - path: "/health"
+      enabled: false
