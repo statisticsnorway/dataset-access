@@ -32,6 +32,7 @@ import no.ssb.datasetaccess.user.UserRepository;
 import no.ssb.helidon.application.AuthorizationInterceptor;
 import no.ssb.helidon.application.DefaultHelidonApplication;
 import no.ssb.helidon.application.HelidonApplication;
+import no.ssb.helidon.application.HelidonGrpcWebTranscoding;
 import no.ssb.helidon.media.protobuf.ProtobufJsonSupport;
 import org.flywaydb.core.Flyway;
 import org.slf4j.Logger;
@@ -91,26 +92,7 @@ public class Application extends DefaultHelidonApplication {
 
         // services
         AccessService accessService = new AccessService(userRepository, roleRepository);
-
-        // routing
-        Routing routing = Routing.builder()
-                .register(AccessLogSupport.create(config.get("webserver.access-log")))
-                .register(ProtobufJsonSupport.create())
-                .register(MetricsSupport.create())
-                .register(health)
-                .register("/role", new RoleHttpService(roleRepository))
-                .register("/user", new UserHttpService(userRepository))
-                .register("/access", new AccessHttpService(accessService))
-                .build();
-        put(Routing.class, routing);
-
-        // web-server
-        WebServer webServer = WebServer.create(
-                ServerConfiguration.builder(config.get("webserver"))
-                        .tracer(tracer)
-                        .build(),
-                routing);
-        put(WebServer.class, webServer);
+        AccessGrpcService accessGrpcService = new AccessGrpcService(accessService);
 
         // grpc-server
         GrpcServer grpcServer = GrpcServer.create(
@@ -132,10 +114,31 @@ public class Application extends DefaultHelidonApplication {
                         ),
                 GrpcRouting.builder()
                         .intercept(new AuthorizationInterceptor())
-                        .register(new AccessGrpcService(accessService))
+                        .register(accessGrpcService)
                         .build()
         );
         put(GrpcServer.class, grpcServer);
+
+        // routing
+        Routing routing = Routing.builder()
+                .register(AccessLogSupport.create(config.get("webserver.access-log")))
+                .register(ProtobufJsonSupport.create())
+                .register(MetricsSupport.create())
+                .register(health)
+                .register("/role", new RoleHttpService(roleRepository))
+                .register("/user", new UserHttpService(userRepository))
+                .register("/access", new AccessHttpService(accessService))
+                .register("/rpc/", new HelidonGrpcWebTranscoding(accessGrpcService))
+                .build();
+        put(Routing.class, routing);
+
+        // web-server
+        WebServer webServer = WebServer.create(
+                ServerConfiguration.builder(config.get("webserver"))
+                        .tracer(tracer)
+                        .build(),
+                routing);
+        put(WebServer.class, webServer);
     }
 
     private void migrateDatabaseSchema(Config flywayConfig) {

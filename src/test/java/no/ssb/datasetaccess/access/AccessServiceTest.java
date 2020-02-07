@@ -1,5 +1,7 @@
 package no.ssb.datasetaccess.access;
 
+import no.ssb.dapla.auth.dataset.protobuf.AccessCheckRequest;
+import no.ssb.dapla.auth.dataset.protobuf.AccessCheckResponse;
 import no.ssb.dapla.auth.dataset.protobuf.Role;
 import no.ssb.dapla.auth.dataset.protobuf.Role.DatasetState;
 import no.ssb.dapla.auth.dataset.protobuf.Role.Privilege;
@@ -10,6 +12,7 @@ import no.ssb.datasetaccess.IntegrationTestExtension;
 import no.ssb.datasetaccess.TestClient;
 import no.ssb.datasetaccess.role.RoleRepository;
 import no.ssb.datasetaccess.user.UserRepository;
+import no.ssb.helidon.media.protobuf.ProtobufJsonUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,6 +23,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @ExtendWith(IntegrationTestExtension.class)
 class AccessServiceTest {
@@ -102,5 +107,23 @@ class AccessServiceTest {
         client.get("/access/john_two_roles?privilege=UPDATE&namespace=/ns/test&valuation=INTERNAL&state=RAW").expect200Ok();
         client.get("/access/john_two_roles?privilege=READ&namespace=/ns/test&valuation=INTERNAL&state=RAW").expect200Ok();
         client.get("/access/john_two_roles?privilege=DELETE&namespace=/ns/test&valuation=INTERNAL&state=RAW").expect403Forbidden();
+    }
+
+    @Test
+    void thatGrpcTranscodingWorks() {
+        createUser("transcoding_user", List.of("updater"));
+        createRole("updater", List.of(Privilege.UPDATE, Privilege.READ), List.of("/ns/test"), Valuation.INTERNAL, List.of(DatasetState.RAW, DatasetState.INPUT));
+        AccessCheckRequest request = AccessCheckRequest.newBuilder()
+                .setUserId("transcoding_user")
+                .setPrivilege(Privilege.READ.name())
+                .setNamespace("/ns/test")
+                .setValuation(Valuation.INTERNAL.name())
+                .setState(DatasetState.RAW.name())
+                .build();
+        // TODO use TestClient form helidon-test
+        String jsonResponse = client.post("/rpc/AuthService/hasAccess", request).expect200Ok().body();
+        System.out.printf("body: %s%n", jsonResponse);
+        AccessCheckResponse response = ProtobufJsonUtils.toPojo(jsonResponse, AccessCheckResponse.class);
+        assertTrue(response.getAllowed());
     }
 }
