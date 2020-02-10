@@ -48,6 +48,7 @@ module no.ssb.datasetaccess {
     opens db.migration; // flyway needs this to read migration files
 
     exports no.ssb.datasetaccess; // allows running individual integration tests from IntelliJ
+    exports no.ssb.datasetaccess.token to com.fasterxml.jackson.databind;
 
     provides HelidonApplicationBuilder with ApplicationBuilder;
 }
