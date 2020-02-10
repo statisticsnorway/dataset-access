@@ -36,7 +36,11 @@ public class UserGrpcService extends UserServiceGrpc.UserServiceImplBase {
             repository.getUser(request.getUserId())
                     .orTimeout(10, TimeUnit.SECONDS)
                     .thenAccept(user -> {
-                        responseObserver.onNext(UserGetResponse.newBuilder().setUser(user).build());
+                        UserGetResponse.Builder responseBuilder = UserGetResponse.newBuilder();
+                        if (user != null) {
+                            responseBuilder.setUser(user);
+                        }
+                        responseObserver.onNext(responseBuilder.build());
                         responseObserver.onCompleted();
                     }).thenRun(span::finish)
                     .exceptionally(throwable -> {
