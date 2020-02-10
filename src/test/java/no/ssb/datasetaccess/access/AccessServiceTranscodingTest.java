@@ -10,7 +10,6 @@ import no.ssb.dapla.auth.dataset.protobuf.User;
 import no.ssb.datasetaccess.Application;
 import no.ssb.datasetaccess.role.RoleRepository;
 import no.ssb.datasetaccess.user.UserRepository;
-import no.ssb.helidon.media.protobuf.ProtobufJsonUtils;
 import no.ssb.testing.helidon.IntegrationTestExtension;
 import no.ssb.testing.helidon.TestClient;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,6 +23,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @ExtendWith(IntegrationTestExtension.class)
@@ -71,32 +71,31 @@ class AccessServiceTranscodingTest {
     void thatGetAccessWorks() {
         createUser("john_can_update", List.of("updater"));
         createRole("updater", List.of(Privilege.UPDATE), List.of("/ns/test"), Valuation.INTERNAL, List.of(DatasetState.RAW, DatasetState.INPUT));
-        client.get("/access/john_can_update?privilege=UPDATE&namespace=/ns/test&valuation=INTERNAL&state=RAW").expect200Ok();
+        assertTrue(client.post("/rpc/AuthService/hasAccess", AccessCheckRequest.newBuilder().setUserId("john_can_update").setPrivilege("UPDATE").setNamespace("/ns/test").setValuation("INTERNAL").setState("RAW").build(), AccessCheckResponse.class).expect200Ok().body().getAllowed());
     }
 
     @Test
     void GetAccessWhenUserDoesntHaveTheAppropriateNamespaceReturns403() {
         createUser("john_with_missing_ns", List.of("creator"));
         createRole("creator", List.of(Privilege.CREATE), List.of("/ns/test/a", "/test"), Valuation.OPEN, List.of(DatasetState.OTHER));
-        client.get("/access/john_with_missing_ns?privilege=CREATE&namespace=/ns/test&valuation=OPEN&state=OTHER").expect403Forbidden();
+        assertFalse(client.post("/rpc/AuthService/hasAccess", AccessCheckRequest.newBuilder().setUserId("john_with_missing_ns").setPrivilege("CREATE").setNamespace("/ns/test").setValuation("OPEN").setState("OTHER").build(), AccessCheckResponse.class).expect200Ok().body().getAllowed());
     }
 
     @Test
     void thatGetAccessWhenUserDoesntHaveTheAppropriatePrivilegeReturns403() {
         createUser("john_cant_delete", List.of("updater"));
         createRole("updater", List.of(Privilege.UPDATE), List.of("/ns/test"), Valuation.SHIELDED, List.of(DatasetState.PROCESSED));
-        client.get("/access/john_cant_delete?privilege=DELETE&namespace=/ns/test&valuation=SHIELDED&state=PROCESSED").expect403Forbidden();
+        assertFalse(client.post("/rpc/AuthService/hasAccess", AccessCheckRequest.newBuilder().setUserId("john_cant_delete").setPrivilege("DELETE").setNamespace("/ns/test").setValuation("SHIELDED").setState("PROCESSED").build(), AccessCheckResponse.class).expect200Ok().body().getAllowed());
     }
 
     @Test
     void thatGetAccessOnUserWithoutAppropriateRolesReturns403() {
-        createUser("john_without_roles", List.of("reader"));
-        client.get("/access/john_without_roles?privilege=DELETE&namespace=test&valuation=SENSITIVE&state=RAW").expect403Forbidden();
+        assertFalse(client.post("/rpc/AuthService/hasAccess", AccessCheckRequest.newBuilder().setUserId("john_without_roles").setPrivilege("DELETE").setNamespace("test").setValuation("SENSITIVE").setState("RAW").build(), AccessCheckResponse.class).expect200Ok().body().getAllowed());
     }
 
     @Test
     void thatGetAccessOnNonExistingUserReturns403() {
-        client.get("/access/does_not_exist?privilege=READ&namespace=a&valuation=SENSITIVE&state=RAW").expect403Forbidden();
+        assertFalse(client.post("/rpc/AuthService/hasAccess", AccessCheckRequest.newBuilder().setUserId("does_not_exist").setPrivilege("READ").setNamespace("a").setValuation("SENSITIVE").setState("RAW").build(), AccessCheckResponse.class).expect200Ok().body().getAllowed());
     }
 
     @Test
@@ -104,25 +103,8 @@ class AccessServiceTranscodingTest {
         createUser("john_two_roles", List.of("updater", "reader"));
         createRole("updater", List.of(Privilege.UPDATE), List.of("/ns/test"), Valuation.INTERNAL, List.of(DatasetState.RAW, DatasetState.INPUT));
         createRole("reader", List.of(Privilege.READ), List.of("/ns/test"), Valuation.INTERNAL, List.of(DatasetState.RAW, DatasetState.INPUT));
-        client.get("/access/john_two_roles?privilege=UPDATE&namespace=/ns/test&valuation=INTERNAL&state=RAW").expect200Ok();
-        client.get("/access/john_two_roles?privilege=READ&namespace=/ns/test&valuation=INTERNAL&state=RAW").expect200Ok();
-        client.get("/access/john_two_roles?privilege=DELETE&namespace=/ns/test&valuation=INTERNAL&state=RAW").expect403Forbidden();
-    }
-
-    @Test
-    void thatGrpcTranscodingWorks() {
-        createUser("transcoding_user", List.of("updater"));
-        createRole("updater", List.of(Privilege.UPDATE, Privilege.READ), List.of("/ns/test"), Valuation.INTERNAL, List.of(DatasetState.RAW, DatasetState.INPUT));
-        AccessCheckRequest request = AccessCheckRequest.newBuilder()
-                .setUserId("transcoding_user")
-                .setPrivilege(Privilege.READ.name())
-                .setNamespace("/ns/test")
-                .setValuation(Valuation.INTERNAL.name())
-                .setState(DatasetState.RAW.name())
-                .build();
-        String jsonResponse = client.post("/rpc/AuthService/hasAccess", request).expect200Ok().body();
-        System.out.printf("body: %s%n", jsonResponse);
-        AccessCheckResponse response = ProtobufJsonUtils.toPojo(jsonResponse, AccessCheckResponse.class);
-        assertTrue(response.getAllowed());
+        assertTrue(client.post("/rpc/AuthService/hasAccess", AccessCheckRequest.newBuilder().setUserId("john_two_roles").setPrivilege("UPDATE").setNamespace("/ns/test").setValuation("INTERNAL").setState("RAW").build(), AccessCheckResponse.class).expect200Ok().body().getAllowed());
+        assertTrue(client.post("/rpc/AuthService/hasAccess", AccessCheckRequest.newBuilder().setUserId("john_two_roles").setPrivilege("READ").setNamespace("/ns/test").setValuation("INTERNAL").setState("RAW").build(), AccessCheckResponse.class).expect200Ok().body().getAllowed());
+        assertFalse(client.post("/rpc/AuthService/hasAccess", AccessCheckRequest.newBuilder().setUserId("john_two_roles").setPrivilege("DELETE").setNamespace("/ns/test").setValuation("INTERNAL").setState("RAW").build(), AccessCheckResponse.class).expect200Ok().body().getAllowed());
     }
 }
