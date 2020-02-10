@@ -2,10 +2,10 @@ package no.ssb.datasetaccess.user;
 
 import no.ssb.dapla.auth.dataset.protobuf.User;
 import no.ssb.datasetaccess.Application;
-import no.ssb.datasetaccess.IntegrationTestExtension;
-import no.ssb.datasetaccess.ResponseHelper;
-import no.ssb.datasetaccess.TestClient;
 import no.ssb.helidon.media.protobuf.ProtobufJsonUtils;
+import no.ssb.testing.helidon.IntegrationTestExtension;
+import no.ssb.testing.helidon.ResponseHelper;
+import no.ssb.testing.helidon.TestClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

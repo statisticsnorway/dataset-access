@@ -3,6 +3,7 @@ package no.ssb.datasetaccess;
 import io.helidon.config.Config;
 import io.helidon.config.spi.ConfigSource;
 import io.helidon.webserver.WebServer;
+import no.ssb.testing.helidon.TestClient;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedList;

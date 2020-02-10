@@ -10,9 +10,9 @@ import no.ssb.dapla.auth.dataset.protobuf.Role.Privilege;
 import no.ssb.dapla.auth.dataset.protobuf.Role.Valuation;
 import no.ssb.dapla.auth.dataset.protobuf.User;
 import no.ssb.datasetaccess.Application;
-import no.ssb.datasetaccess.IntegrationTestExtension;
 import no.ssb.datasetaccess.role.RoleRepository;
 import no.ssb.datasetaccess.user.UserRepository;
+import no.ssb.testing.helidon.IntegrationTestExtension;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 

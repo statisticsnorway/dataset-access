@@ -8,11 +8,11 @@ import no.ssb.dapla.auth.dataset.protobuf.Role.Privilege;
 import no.ssb.dapla.auth.dataset.protobuf.Role.Valuation;
 import no.ssb.dapla.auth.dataset.protobuf.User;
 import no.ssb.datasetaccess.Application;
-import no.ssb.datasetaccess.IntegrationTestExtension;
-import no.ssb.datasetaccess.TestClient;
 import no.ssb.datasetaccess.role.RoleRepository;
 import no.ssb.datasetaccess.user.UserRepository;
 import no.ssb.helidon.media.protobuf.ProtobufJsonUtils;
+import no.ssb.testing.helidon.IntegrationTestExtension;
+import no.ssb.testing.helidon.TestClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -120,7 +120,6 @@ class AccessServiceTest {
                 .setValuation(Valuation.INTERNAL.name())
                 .setState(DatasetState.RAW.name())
                 .build();
-        // TODO use TestClient form helidon-test
         String jsonResponse = client.post("/rpc/AuthService/hasAccess", request).expect200Ok().body();
         System.out.printf("body: %s%n", jsonResponse);
         AccessCheckResponse response = ProtobufJsonUtils.toPojo(jsonResponse, AccessCheckResponse.class);
