@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 @ExtendWith(IntegrationTestExtension.class)
-class RoleHttpServiceTest {
+class RoleServiceHttpTest {
 
     @Inject
     Application application;

@@ -1,6 +1,7 @@
 package no.ssb.datasetaccess;
 
 
+import io.grpc.ManagedChannelBuilder;
 import io.grpc.MethodDescriptor;
 import io.helidon.config.Config;
 import io.helidon.grpc.server.GrpcRouting;
@@ -25,8 +26,10 @@ import no.ssb.datasetaccess.access.AccessService;
 import no.ssb.datasetaccess.health.Health;
 import no.ssb.datasetaccess.health.HealthAwarePgPool;
 import no.ssb.datasetaccess.health.ReadinessSample;
+import no.ssb.datasetaccess.role.RoleGrpcService;
 import no.ssb.datasetaccess.role.RoleHttpService;
 import no.ssb.datasetaccess.role.RoleRepository;
+import no.ssb.datasetaccess.user.UserGrpcService;
 import no.ssb.datasetaccess.user.UserHttpService;
 import no.ssb.datasetaccess.user.UserRepository;
 import no.ssb.helidon.application.AuthorizationInterceptor;
@@ -38,6 +41,7 @@ import org.flywaydb.core.Flyway;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
@@ -69,7 +73,7 @@ public class Application extends DefaultHelidonApplication {
     public Application(Config config) {
         put(Config.class, config);
 
-        TracerBuilder<?> tracerBuilder = TracerBuilder.create(config.get("tracing")).registerGlobal(true);
+        TracerBuilder<?> tracerBuilder = TracerBuilder.create(config.get("tracing")).registerGlobal(false);
         Tracer tracer = tracerBuilder.build();
 
         AtomicReference<ReadinessSample> lastReadySample = new AtomicReference<>(new ReadinessSample(false, System.currentTimeMillis()));
@@ -93,6 +97,8 @@ public class Application extends DefaultHelidonApplication {
         // services
         AccessService accessService = new AccessService(userRepository, roleRepository);
         AccessGrpcService accessGrpcService = new AccessGrpcService(accessService);
+        RoleGrpcService roleGrpcService = new RoleGrpcService(roleRepository);
+        UserGrpcService userGrpcService = new UserGrpcService(userRepository);
 
         // grpc-server
         GrpcServer grpcServer = GrpcServer.create(
@@ -115,6 +121,8 @@ public class Application extends DefaultHelidonApplication {
                 GrpcRouting.builder()
                         .intercept(new AuthorizationInterceptor())
                         .register(accessGrpcService)
+                        .register(roleGrpcService)
+                        .register(userGrpcService)
                         .build()
         );
         put(GrpcServer.class, grpcServer);
@@ -128,7 +136,18 @@ public class Application extends DefaultHelidonApplication {
                 .register("/role", new RoleHttpService(roleRepository))
                 .register("/user", new UserHttpService(userRepository))
                 .register("/access", new AccessHttpService(accessService))
-                .register("/rpc/", new HelidonGrpcWebTranscoding(accessGrpcService))
+                .register("/rpc", new HelidonGrpcWebTranscoding(
+                        () -> ManagedChannelBuilder
+                                .forAddress("localhost", Optional.of(grpcServer)
+                                        .filter(GrpcServer::isRunning)
+                                        .map(GrpcServer::port)
+                                        .orElseThrow())
+                                .usePlaintext()
+                                .build(),
+                        accessGrpcService,
+                        roleGrpcService,
+                        userGrpcService
+                ))
                 .build();
         put(Routing.class, routing);
 

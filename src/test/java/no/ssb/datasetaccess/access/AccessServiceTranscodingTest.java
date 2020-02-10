@@ -27,7 +27,7 @@ import java.util.concurrent.TimeoutException;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @ExtendWith(IntegrationTestExtension.class)
-class AccessServiceTest {
+class AccessServiceTranscodingTest {
 
     @Inject
     Application application;

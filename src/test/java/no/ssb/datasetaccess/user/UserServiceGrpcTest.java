@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 @ExtendWith(IntegrationTestExtension.class)
-class UserHttpServiceTest {
+class UserServiceGrpcTest {
 
     @Inject
     Application application;
