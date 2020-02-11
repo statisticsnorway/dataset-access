@@ -8,6 +8,7 @@ import io.helidon.webserver.ServerResponse;
 import io.helidon.webserver.Service;
 import io.opentracing.Span;
 import no.ssb.dapla.auth.dataset.protobuf.Role;
+import no.ssb.helidon.application.TracerAndSpan;
 import no.ssb.helidon.application.Tracing;
 import org.eclipse.microprofile.metrics.Counter;
 import org.eclipse.microprofile.metrics.MetricRegistry;
@@ -39,7 +40,8 @@ public class AccessHttpService implements Service {
     }
 
     private void httpHasAccess(ServerRequest req, ServerResponse res) {
-        Span span = Tracing.spanFromHttp(req, "doGet");
+        TracerAndSpan tracerAndSpan = Tracing.spanFromHttp(req, "httpHasAccess");
+        Span span = tracerAndSpan.span();
         try {
             String userId = req.path().param("userId");
             span.setTag("userId", userId);
@@ -58,6 +60,7 @@ public class AccessHttpService implements Service {
             accessService.hasAccess(span, userId, privilege, namespace, valuation, state)
                     .orTimeout(10, TimeUnit.SECONDS)
                     .thenAccept(access -> {
+                        Tracing.restoreTracingContext(tracerAndSpan);
                         if (access) {
                             accessGrantedCount.inc();
                             res.status(Http.Status.OK_200).send();
@@ -69,6 +72,7 @@ public class AccessHttpService implements Service {
                     }).thenRun(timerContext::stop)
                     .exceptionally(t -> {
                         try {
+                            Tracing.restoreTracingContext(tracerAndSpan);
                             res.status(Http.Status.INTERNAL_SERVER_ERROR_500).send(t.getMessage());
                             logError(span, t);
                             LOG.error("hasAccess() user='{}'", userId, t);

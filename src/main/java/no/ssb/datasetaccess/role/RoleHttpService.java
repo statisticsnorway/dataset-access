@@ -9,6 +9,8 @@ import io.helidon.webserver.ServerResponse;
 import io.helidon.webserver.Service;
 import io.opentracing.Span;
 import no.ssb.dapla.auth.dataset.protobuf.Role;
+import no.ssb.helidon.application.TracerAndSpan;
+import no.ssb.helidon.application.Tracing;
 
 import java.util.concurrent.TimeUnit;
 
@@ -33,13 +35,15 @@ public class RoleHttpService implements Service {
     }
 
     private void doGet(ServerRequest req, ServerResponse res) {
-        Span span = spanFromHttp(req, "doGet");
+        TracerAndSpan tracerAndSpan = spanFromHttp(req, "doGet");
+        Span span = tracerAndSpan.span();
         try {
             String roleId = req.path().param("roleId");
             span.setTag("roleId", roleId);
             repository.getRole(roleId)
                     .orTimeout(30, TimeUnit.SECONDS)
                     .thenAccept(role -> {
+                        Tracing.restoreTracingContext(req.tracer(), span);
                         if (role == null) {
                             res.status(Http.Status.NOT_FOUND_404).send();
                         } else {
@@ -49,6 +53,7 @@ public class RoleHttpService implements Service {
                     }).thenRun(span::finish)
                     .exceptionally(t -> {
                         try {
+                            Tracing.restoreTracingContext(req.tracer(), span);
                             logError(span, t);
                             res.status(Http.Status.INTERNAL_SERVER_ERROR_500).send(t.getMessage());
                             return null;
@@ -66,7 +71,8 @@ public class RoleHttpService implements Service {
     }
 
     private void doPut(ServerRequest req, ServerResponse res, Role role) {
-        Span span = spanFromHttp(req, "doPut");
+        TracerAndSpan tracerAndSpan = spanFromHttp(req, "doPut");
+        Span span = tracerAndSpan.span();
         try {
             traceInputMessage(span, role);
             String roleId = req.path().param("roleId");
@@ -80,11 +86,13 @@ public class RoleHttpService implements Service {
             repository.createOrUpdateRole(role)
                     .orTimeout(30, TimeUnit.SECONDS)
                     .thenRun(() -> {
+                        Tracing.restoreTracingContext(req.tracer(), span);
                         res.headers().add("Location", "/role/" + roleId);
                         res.status(Http.Status.CREATED_201).send();
                     }).thenRun(span::finish)
                     .exceptionally(t -> {
                         try {
+                            Tracing.restoreTracingContext(req.tracer(), span);
                             logError(span, t);
                             res.status(Http.Status.INTERNAL_SERVER_ERROR_500).send(t.getMessage());
                             return null;
@@ -102,16 +110,21 @@ public class RoleHttpService implements Service {
     }
 
     private void doDelete(ServerRequest req, ServerResponse res) {
-        Span span = spanFromHttp(req, "doDelete");
+        TracerAndSpan tracerAndSpan = spanFromHttp(req, "doDelete");
+        Span span = tracerAndSpan.span();
         try {
             String roleId = req.path().param("roleId");
             span.setTag("roleId", roleId);
             repository.deleteRole(roleId)
                     .orTimeout(30, TimeUnit.SECONDS)
-                    .thenRun(res::send)
+                    .thenRun(() -> {
+                        Tracing.restoreTracingContext(req.tracer(), span);
+                        res.send();
+                    })
                     .thenRun(span::finish)
                     .exceptionally(t -> {
                         try {
+                            Tracing.restoreTracingContext(req.tracer(), span);
                             logError(span, t);
                             res.status(Http.Status.INTERNAL_SERVER_ERROR_500).send(t.getMessage());
                             return null;

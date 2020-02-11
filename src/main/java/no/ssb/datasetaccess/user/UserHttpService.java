@@ -8,6 +8,7 @@ import io.helidon.webserver.ServerResponse;
 import io.helidon.webserver.Service;
 import io.opentracing.Span;
 import no.ssb.dapla.auth.dataset.protobuf.User;
+import no.ssb.helidon.application.TracerAndSpan;
 import no.ssb.helidon.application.Tracing;
 
 import static no.ssb.helidon.application.Tracing.spanFromHttp;
@@ -29,12 +30,14 @@ public class UserHttpService implements Service {
     }
 
     private void doGet(ServerRequest req, ServerResponse res) {
-        Span span = spanFromHttp(req, "doGet");
+        TracerAndSpan tracerAndSpan = spanFromHttp(req, "doGet");
+        Span span = tracerAndSpan.span();
         try {
             String userId = req.path().param("userId");
             span.setTag("userId", userId);
             repository.getUser(userId)
                     .thenAccept(user -> {
+                        Tracing.restoreTracingContext(req.tracer(), span);
                         if (user == null) {
                             res.status(Http.Status.NOT_FOUND_404).send();
                         } else {
@@ -43,6 +46,7 @@ public class UserHttpService implements Service {
                     }).thenRun(span::finish)
                     .exceptionally(t -> {
                         try {
+                            Tracing.restoreTracingContext(req.tracer(), span);
                             res.status(Http.Status.INTERNAL_SERVER_ERROR_500).send(t.getMessage());
                             return null;
                         } finally {
@@ -59,7 +63,8 @@ public class UserHttpService implements Service {
     }
 
     private void doPut(ServerRequest req, ServerResponse res, User user) {
-        Span span = spanFromHttp(req, "doPut");
+        TracerAndSpan tracerAndSpan = spanFromHttp(req, "doPut");
+        Span span = tracerAndSpan.span();
         try {
             traceInputMessage(span, user);
             String userId = req.path().param("userId");
@@ -70,11 +75,13 @@ public class UserHttpService implements Service {
             }
             repository.createOrUpdateUser(user)
                     .thenRun(() -> {
+                        Tracing.restoreTracingContext(req.tracer(), span);
                         res.headers().add("Location", "/user/" + userId);
                         res.status(Http.Status.CREATED_201).send();
                     }).thenRun(span::finish)
                     .exceptionally(t -> {
                         try {
+                            Tracing.restoreTracingContext(req.tracer(), span);
                             res.status(Http.Status.INTERNAL_SERVER_ERROR_500).send(t.getMessage());
                             return null;
                         } finally {
@@ -91,15 +98,20 @@ public class UserHttpService implements Service {
     }
 
     private void doDelete(ServerRequest req, ServerResponse res) {
-        Span span = spanFromHttp(req, "doDelete");
+        TracerAndSpan tracerAndSpan = spanFromHttp(req, "doDelete");
+        Span span = tracerAndSpan.span();
         try {
             String userId = req.path().param("userId");
             span.setTag("userId", userId);
             repository.deleteUser(userId)
-                    .thenRun(res::send)
+                    .thenRun(() -> {
+                        Tracing.restoreTracingContext(req.tracer(), span);
+                        res.send();
+                    })
                     .thenRun(span::finish)
                     .exceptionally(t -> {
                         try {
+                            Tracing.restoreTracingContext(req.tracer(), span);
                             res.status(Http.Status.INTERNAL_SERVER_ERROR_500).send(t.getMessage());
                             return null;
                         } finally {

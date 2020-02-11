@@ -11,6 +11,7 @@ import no.ssb.dapla.auth.dataset.protobuf.UserGetResponse;
 import no.ssb.dapla.auth.dataset.protobuf.UserPutRequest;
 import no.ssb.dapla.auth.dataset.protobuf.UserPutResponse;
 import no.ssb.dapla.auth.dataset.protobuf.UserServiceGrpc;
+import no.ssb.helidon.application.TracerAndSpan;
 import no.ssb.helidon.application.Tracing;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,11 +32,13 @@ public class UserGrpcService extends UserServiceGrpc.UserServiceImplBase {
 
     @Override
     public void getUser(UserGetRequest request, StreamObserver<UserGetResponse> responseObserver) {
-        Span span = spanFromGrpc(request, "getUser");
+        TracerAndSpan tracerAndSpan = spanFromGrpc(request, "getUser");
+        Span span = tracerAndSpan.span();
         try {
             repository.getUser(request.getUserId())
                     .orTimeout(10, TimeUnit.SECONDS)
                     .thenAccept(user -> {
+                        Tracing.restoreTracingContext(tracerAndSpan);
                         UserGetResponse.Builder responseBuilder = UserGetResponse.newBuilder();
                         if (user != null) {
                             responseBuilder.setUser(user);
@@ -45,6 +48,7 @@ public class UserGrpcService extends UserServiceGrpc.UserServiceImplBase {
                     }).thenRun(span::finish)
                     .exceptionally(throwable -> {
                         try {
+                            Tracing.restoreTracingContext(tracerAndSpan);
                             LOG.error(String.format("While serving grpc get for user: %s", request.getUserId()), throwable);
                             responseObserver.onError(new StatusException(Status.fromThrowable(throwable)));
                             return null;
@@ -63,16 +67,19 @@ public class UserGrpcService extends UserServiceGrpc.UserServiceImplBase {
 
     @Override
     public void putUser(UserPutRequest request, StreamObserver<UserPutResponse> responseObserver) {
-        Span span = spanFromGrpc(request, "putUser");
+        TracerAndSpan tracerAndSpan = spanFromGrpc(request, "putUser");
+        Span span = tracerAndSpan.span();
         try {
             repository.createOrUpdateUser(request.getUser())
                     .orTimeout(5, TimeUnit.SECONDS)
                     .thenAccept(aVoid -> {
+                        Tracing.restoreTracingContext(tracerAndSpan);
                         responseObserver.onNext(UserPutResponse.newBuilder().build());
                         responseObserver.onCompleted();
                     }).thenRun(span::finish)
                     .exceptionally(throwable -> {
                         try {
+                            Tracing.restoreTracingContext(tracerAndSpan);
                             LOG.error(String.format("While serving grpc save for user: %s", request.getUser().getUserId()), throwable);
                             responseObserver.onError(throwable);
                             return null;
@@ -91,16 +98,19 @@ public class UserGrpcService extends UserServiceGrpc.UserServiceImplBase {
 
     @Override
     public void deleteUser(UserDeleteRequest request, StreamObserver<UserDeleteResponse> responseObserver) {
-        Span span = spanFromGrpc(request, "putUser");
+        TracerAndSpan tracerAndSpan = spanFromGrpc(request, "putUser");
+        Span span = tracerAndSpan.span();
         try {
             repository.deleteUser(request.getUserId())
                     .orTimeout(5, TimeUnit.SECONDS)
                     .thenAccept(aVoid -> {
+                        Tracing.restoreTracingContext(tracerAndSpan);
                         responseObserver.onNext(UserDeleteResponse.newBuilder().build());
                         responseObserver.onCompleted();
                     }).thenRun(span::finish)
                     .exceptionally(throwable -> {
                         try {
+                            Tracing.restoreTracingContext(tracerAndSpan);
                             LOG.error(String.format("While serving grpc delete for user: %s", request.getUserId()), throwable);
                             responseObserver.onError(throwable);
                             return null;
