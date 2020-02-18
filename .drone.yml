@@ -118,9 +118,9 @@ services:
     ports:
       - 5432
     environment:
-      POSTGRES_PASSWORD: rdc
-      POSTGRES_USER: rdc
-      POSTGRES_DB: rdc
+      POSTGRES_PASSWORD: dataset_access
+      POSTGRES_USER: dataset_access
+      POSTGRES_DB: dataset_access
 
 ---
 kind: secret

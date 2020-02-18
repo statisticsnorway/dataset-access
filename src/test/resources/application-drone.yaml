@@ -9,16 +9,16 @@ pgpool:
   connect-options:
     port: 5432
     host: postgres
-    database: rdc
-    user: rdc
-    password: rdc
+    database: dataset_access
+    user: dataset_access
+    password: dataset_access
   pool-options:
     max-size: 5
 
 flyway:
-  url: jdbc:postgresql://postgres:5432/rdc
-  user: rdc
-  password: rdc
+  url: jdbc:postgresql://postgres:5432/dataset_access
+  user: dataset_access
+  password: dataset_access
 
 init:
   db-connectivity-attempts: 10
