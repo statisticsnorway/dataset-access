@@ -5,7 +5,7 @@ services:
   postgres:
     image: postgres:12-alpine
     ports:
-      - 15432:5432
+      - 10102:5432
     environment:
       POSTGRES_PASSWORD: secret
     volumes:
@@ -20,6 +20,6 @@ services:
     environment:
       PGPOOL_CONNECT_dash_OPTIONS_HOST: postgres
       PGPOOL_CONNECT_dash_OPTIONS_PORT: 5432
-      FLYWAY_URL: jdbc:postgresql://postgres:5432/rdc
+      FLYWAY_URL: jdbc:postgresql://postgres:5432/dataset_access
     depends_on:
       - postgres

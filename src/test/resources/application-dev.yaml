@@ -7,7 +7,7 @@ grpcserver:
 
 pgpool:
   connect-options:
-    port: 15432
+    port: 10102
     host: localhost
     database: rdc
     user: rdc
@@ -16,6 +16,6 @@ pgpool:
     max-size: 5
 
 flyway:
-  url: jdbc:postgresql://localhost:15432/rdc
+  url: jdbc:postgresql://localhost:10102/rdc
   user: rdc
   password: rdc
