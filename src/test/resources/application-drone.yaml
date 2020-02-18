@@ -19,3 +19,6 @@ flyway:
   url: jdbc:postgresql://postgres:5432/rdc
   user: rdc
   password: rdc
+
+init:
+  db-connectivity-attempts: 10
