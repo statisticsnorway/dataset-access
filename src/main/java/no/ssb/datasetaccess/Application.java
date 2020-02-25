@@ -14,6 +14,7 @@ import io.helidon.tracing.TracerBuilder;
 import io.helidon.webserver.Routing;
 import io.helidon.webserver.ServerConfiguration;
 import io.helidon.webserver.WebServer;
+import io.helidon.webserver.WebTracingConfig;
 import io.helidon.webserver.accesslog.AccessLogSupport;
 import io.opentracing.Tracer;
 import io.opentracing.contrib.grpc.OperationNameConstructor;
@@ -130,6 +131,7 @@ public class Application extends DefaultHelidonApplication {
         // routing
         Routing routing = Routing.builder()
                 .register(AccessLogSupport.create(config.get("webserver.access-log")))
+                .register(WebTracingConfig.create(config.get("tracing")))
                 .register(ProtobufJsonSupport.create())
                 .register(MetricsSupport.create())
                 .register(health)
