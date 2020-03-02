@@ -11,16 +11,16 @@ pgpool:
   connect-options:
     port: 25432
     host: localhost
-    database: dataset_access
-    user: dataset_access
-    password: dataset_access
+    database: user_access
+    user: user_access
+    password: user_access
   pool-options:
     max-size: 5
 
 flyway:
-  url: jdbc:postgresql://localhost:25432/dataset_access
-  user: dataset_access
-  password: dataset_access
+  url: jdbc:postgresql://localhost:25432/user_access
+  user: user_access
+  password: user_access
 
 init:
   db-connectivity-attempts: 120
@@ -31,7 +31,7 @@ health:
 
 tracing:
   enabled: true
-  service: dataset-access
+  service: user-access
   sampler-type: const
   sampler-param: 1
   protocol: http
