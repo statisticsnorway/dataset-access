@@ -9,7 +9,7 @@ import no.ssb.dapla.auth.dataset.protobuf.RoleGetRequest;
 import no.ssb.dapla.auth.dataset.protobuf.RoleGetResponse;
 import no.ssb.dapla.auth.dataset.protobuf.RolePutRequest;
 import no.ssb.dapla.auth.dataset.protobuf.RolePutResponse;
-import no.ssb.datasetaccess.Application;
+import no.ssb.datasetaccess.UserAccessApplication;
 import no.ssb.testing.helidon.IntegrationTestExtension;
 import no.ssb.testing.helidon.TestClient;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 class RoleServiceTranscodingTest {
 
     @Inject
-    Application application;
+    UserAccessApplication application;
 
     @Inject
     TestClient client;

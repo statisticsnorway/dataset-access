@@ -16,7 +16,7 @@ import java.util.function.Supplier;
 import static io.helidon.config.ConfigSources.classpath;
 import static io.helidon.config.ConfigSources.file;
 
-class ApplicationTest {
+class UserAccessApplicationTest {
 
     @Test
     void thatApplicationStackCanBeStarted() throws InterruptedException, ExecutionException, TimeoutException {
@@ -38,7 +38,7 @@ class ApplicationTest {
             configSourceSupplierList.add(classpath("application-dev.yaml"));
         }
         configSourceSupplierList.add(classpath("application.yaml"));
-        Application application = new Application(Config.builder().sources(configSourceSupplierList).build());
+        UserAccessApplication application = new UserAccessApplication(Config.builder().sources(configSourceSupplierList).build());
         try {
             application.start().toCompletableFuture().get(5, TimeUnit.SECONDS);
             TestClient client = TestClient.newClient("localhost", application.get(WebServer.class).port());

@@ -5,7 +5,7 @@ import no.ssb.dapla.auth.dataset.protobuf.Role.DatasetState;
 import no.ssb.dapla.auth.dataset.protobuf.Role.Privilege;
 import no.ssb.dapla.auth.dataset.protobuf.Role.Valuation;
 import no.ssb.dapla.auth.dataset.protobuf.User;
-import no.ssb.datasetaccess.Application;
+import no.ssb.datasetaccess.UserAccessApplication;
 import no.ssb.datasetaccess.role.RoleRepository;
 import no.ssb.datasetaccess.user.UserRepository;
 import no.ssb.testing.helidon.IntegrationTestExtension;
@@ -25,7 +25,7 @@ import java.util.concurrent.TimeoutException;
 class AccessServiceHttpTest {
 
     @Inject
-    Application application;
+    UserAccessApplication application;
 
     @Inject
     TestClient client;

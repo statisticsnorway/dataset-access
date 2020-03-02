@@ -1,7 +1,7 @@
 package no.ssb.datasetaccess.user;
 
 import no.ssb.dapla.auth.dataset.protobuf.User;
-import no.ssb.datasetaccess.Application;
+import no.ssb.datasetaccess.UserAccessApplication;
 import no.ssb.helidon.media.protobuf.ProtobufJsonUtils;
 import no.ssb.testing.helidon.IntegrationTestExtension;
 import no.ssb.testing.helidon.ResponseHelper;
@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 class UserServiceGrpcTest {
 
     @Inject
-    Application application;
+    UserAccessApplication application;
 
     @Inject
     TestClient client;

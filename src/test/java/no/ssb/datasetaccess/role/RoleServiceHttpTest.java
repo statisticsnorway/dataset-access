@@ -4,7 +4,7 @@ import no.ssb.dapla.auth.dataset.protobuf.Role;
 import no.ssb.dapla.auth.dataset.protobuf.Role.DatasetState;
 import no.ssb.dapla.auth.dataset.protobuf.Role.Privilege;
 import no.ssb.dapla.auth.dataset.protobuf.Role.Valuation;
-import no.ssb.datasetaccess.Application;
+import no.ssb.datasetaccess.UserAccessApplication;
 import no.ssb.testing.helidon.IntegrationTestExtension;
 import no.ssb.testing.helidon.ResponseHelper;
 import no.ssb.testing.helidon.TestClient;
@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 class RoleServiceHttpTest {
 
     @Inject
-    Application application;
+    UserAccessApplication application;
 
     @Inject
     TestClient client;

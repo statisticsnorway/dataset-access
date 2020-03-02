@@ -10,7 +10,7 @@ import no.ssb.dapla.auth.dataset.protobuf.RoleGetRequest;
 import no.ssb.dapla.auth.dataset.protobuf.RoleGetResponse;
 import no.ssb.dapla.auth.dataset.protobuf.RolePutRequest;
 import no.ssb.dapla.auth.dataset.protobuf.RoleServiceGrpc;
-import no.ssb.datasetaccess.Application;
+import no.ssb.datasetaccess.UserAccessApplication;
 import no.ssb.testing.helidon.IntegrationTestExtension;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 class RoleServiceGrpcTest {
 
     @Inject
-    Application application;
+    UserAccessApplication application;
 
     @Inject
     Channel channel;

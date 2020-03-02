@@ -1,4 +1,4 @@
-import no.ssb.datasetaccess.ApplicationBuilder;
+import no.ssb.datasetaccess.UserAccessApplicationBuilder;
 import no.ssb.helidon.application.HelidonApplicationBuilder;
 
 module no.ssb.datasetaccess {
@@ -50,5 +50,5 @@ module no.ssb.datasetaccess {
     exports no.ssb.datasetaccess; // allows running individual integration tests from IntelliJ
     exports no.ssb.datasetaccess.token to com.fasterxml.jackson.databind;
 
-    provides HelidonApplicationBuilder with ApplicationBuilder;
+    provides HelidonApplicationBuilder with UserAccessApplicationBuilder;
 }

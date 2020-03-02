@@ -48,18 +48,18 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class Application extends DefaultHelidonApplication {
+public class UserAccessApplication extends DefaultHelidonApplication {
 
     private static final Logger LOG;
 
     static {
         installSlf4jJulBridge();
-        LOG = LoggerFactory.getLogger(Application.class);
+        LOG = LoggerFactory.getLogger(UserAccessApplication.class);
     }
 
     public static void main(String[] args) {
         long startTime = System.currentTimeMillis();
-        new ApplicationBuilder().build().start()
+        new UserAccessApplicationBuilder().build().start()
                 .toCompletableFuture()
                 .orTimeout(10, TimeUnit.SECONDS)
                 .thenAccept(app -> LOG.info("Webserver running at port: {}, Grpcserver running at port: {}, started in {} ms",
@@ -71,7 +71,7 @@ public class Application extends DefaultHelidonApplication {
                 });
     }
 
-    public Application(Config config) {
+    public UserAccessApplication(Config config) {
         put(Config.class, config);
 
         TracerBuilder<?> tracerBuilder = TracerBuilder.create(config.get("tracing")).registerGlobal(false);
