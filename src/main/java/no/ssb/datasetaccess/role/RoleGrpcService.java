@@ -60,6 +60,8 @@ public class RoleGrpcService extends RoleServiceGrpc.RoleServiceImplBase {
         } catch (Exception | Error e) {
             try {
                 Tracing.logError(span, e, "unexpected error");
+                LOG.error("unexpected error", e);
+                responseObserver.onError(new StatusException(Status.fromThrowable(e)));
             } finally {
                 span.finish();
             }
@@ -92,6 +94,8 @@ public class RoleGrpcService extends RoleServiceGrpc.RoleServiceImplBase {
         } catch (Exception | Error e) {
             try {
                 Tracing.logError(span, e, "unexpected error");
+                LOG.error("unexpected error", e);
+                responseObserver.onError(new StatusException(Status.fromThrowable(e)));
             } finally {
                 span.finish();
             }
@@ -123,6 +127,8 @@ public class RoleGrpcService extends RoleServiceGrpc.RoleServiceImplBase {
         } catch (Exception | Error e) {
             try {
                 Tracing.logError(span, e, "unexpected error");
+                LOG.error("unexpected error", e);
+                responseObserver.onError(new StatusException(Status.fromThrowable(e)));
             } finally {
                 span.finish();
             }

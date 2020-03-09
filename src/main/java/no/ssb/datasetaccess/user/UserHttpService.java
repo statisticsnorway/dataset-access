@@ -10,11 +10,15 @@ import io.opentracing.Span;
 import no.ssb.dapla.auth.dataset.protobuf.User;
 import no.ssb.helidon.application.TracerAndSpan;
 import no.ssb.helidon.application.Tracing;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static no.ssb.helidon.application.Tracing.spanFromHttp;
 import static no.ssb.helidon.application.Tracing.traceInputMessage;
 
 public class UserHttpService implements Service {
+
+    private static final Logger LOG = LoggerFactory.getLogger(UserHttpService.class);
 
     final UserRepository repository;
 
@@ -53,9 +57,11 @@ public class UserHttpService implements Service {
                             span.finish();
                         }
                     });
-        } catch (Exception | Error e) {
+        } catch (RuntimeException | Error e) {
             try {
                 Tracing.logError(span, e, "unexpected error");
+                LOG.error("unexpected error", e);
+                throw e;
             } finally {
                 span.finish();
             }
@@ -88,9 +94,11 @@ public class UserHttpService implements Service {
                             span.finish();
                         }
                     });
-        } catch (Exception | Error e) {
+        } catch (RuntimeException | Error e) {
             try {
                 Tracing.logError(span, e, "unexpected error");
+                LOG.error("unexpected error", e);
+                throw e;
             } finally {
                 span.finish();
             }
@@ -118,9 +126,11 @@ public class UserHttpService implements Service {
                             span.finish();
                         }
                     });
-        } catch (Exception | Error e) {
+        } catch (RuntimeException | Error e) {
             try {
                 Tracing.logError(span, e, "unexpected error");
+                LOG.error("unexpected error", e);
+                throw e;
             } finally {
                 span.finish();
             }

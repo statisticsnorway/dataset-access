@@ -11,6 +11,8 @@ import io.opentracing.Span;
 import no.ssb.dapla.auth.dataset.protobuf.Role;
 import no.ssb.helidon.application.TracerAndSpan;
 import no.ssb.helidon.application.Tracing;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.TimeUnit;
 
@@ -20,6 +22,8 @@ import static no.ssb.helidon.application.Tracing.traceInputMessage;
 import static no.ssb.helidon.application.Tracing.traceOutputMessage;
 
 public class RoleHttpService implements Service {
+
+    private static final Logger LOG = LoggerFactory.getLogger(RoleHttpService.class);
 
     final RoleRepository repository;
 
@@ -61,9 +65,11 @@ public class RoleHttpService implements Service {
                             span.finish();
                         }
                     });
-        } catch (Exception | Error e) {
+        } catch (RuntimeException | Error e) {
             try {
                 logError(span, e);
+                LOG.error("unexpected error", e);
+                throw e;
             } finally {
                 span.finish();
             }
@@ -100,9 +106,11 @@ public class RoleHttpService implements Service {
                             span.finish();
                         }
                     });
-        } catch (Exception | Error e) {
+        } catch (RuntimeException | Error e) {
             try {
                 logError(span, e);
+                LOG.error("unexpected error", e);
+                throw e;
             } finally {
                 span.finish();
             }
@@ -132,9 +140,11 @@ public class RoleHttpService implements Service {
                             span.finish();
                         }
                     });
-        } catch (Exception | Error e) {
+        } catch (RuntimeException | Error e) {
             try {
                 logError(span, e);
+                LOG.error("unexpected error", e);
+                throw e;
             } finally {
                 span.finish();
             }

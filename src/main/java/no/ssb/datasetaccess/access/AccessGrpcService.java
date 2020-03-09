@@ -61,7 +61,7 @@ public class AccessGrpcService extends AuthServiceGrpc.AuthServiceImplBase {
             try {
                 logError(span, e, "top-level error");
                 LOG.error("top-level error", e);
-                throw e;
+                responseObserver.onError(new StatusException(Status.fromThrowable(e)));
             } finally {
                 span.finish();
             }
