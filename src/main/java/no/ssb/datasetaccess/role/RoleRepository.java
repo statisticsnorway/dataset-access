@@ -63,23 +63,23 @@ public class RoleRepository {
     }
 
     public CompletableFuture<List<Role>> getRoles(Collection<String> roleIds) {
-        if (roleIds == null || roleIds.isEmpty()) {
-            return CompletableFuture.completedFuture(Collections.emptyList());
-        }
-
         CompletableFuture<List<Role>> future = new CompletableFuture<>();
-        StringBuilder sb = new StringBuilder("SELECT roleId, document FROM role WHERE roleId IN (");
+        StringBuilder sb = new StringBuilder("SELECT roleId, document FROM role");
         Tuple arguments = Tuple.tuple();
-        int i = 1;
-        for (String roleId : roleIds) {
-            if (i > 1) {
-                sb.append(",");
+        if (roleIds != null && roleIds.size() > 0) {
+            sb.append(" WHERE roleId IN (");
+            int i = 1;
+            for (String roleId : roleIds) {
+                if (i > 1) {
+                    sb.append(",");
+                }
+                sb.append("$").append(i);
+                arguments.addString(roleId);
+                i++;
             }
-            sb.append("$").append(i);
-            arguments.addString(roleId);
-            i++;
+            sb.append(")");
         }
-        sb.append(") ORDER BY roleId");
+        sb.append(" ORDER BY roleId");
         client.preparedQuery(sb.toString(), arguments, ar -> {
             try {
                 if (!ar.succeeded()) {

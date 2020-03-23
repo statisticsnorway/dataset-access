@@ -11,6 +11,7 @@ import io.opentracing.Span;
 import no.ssb.dapla.auth.dataset.protobuf.Role;
 import no.ssb.helidon.application.TracerAndSpan;
 import no.ssb.helidon.application.Tracing;
+import no.ssb.helidon.media.protobuf.ProtobufJsonUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,6 +35,7 @@ public class RoleHttpService implements Service {
     @Override
     public void update(Routing.Rules rules) {
         rules.get("/{roleId}", this::doGet);
+        rules.get("/", this::doGetAll);
         rules.put("/{roleId}", Handler.create(Role.class, this::doPut));
         rules.delete("/{roleId}", this::doDelete);
     }
@@ -53,6 +55,49 @@ public class RoleHttpService implements Service {
                         } else {
                             res.send(role);
                             traceOutputMessage(span, role);
+                        }
+                    }).thenRun(span::finish)
+                    .exceptionally(t -> {
+                        try {
+                            Tracing.restoreTracingContext(req.tracer(), span);
+                            logError(span, t);
+                            res.status(Http.Status.INTERNAL_SERVER_ERROR_500).send(t.getMessage());
+                            return null;
+                        } finally {
+                            span.finish();
+                        }
+                    });
+        } catch (RuntimeException | Error e) {
+            try {
+                logError(span, e);
+                LOG.error("unexpected error", e);
+                throw e;
+            } finally {
+                span.finish();
+            }
+        }
+    }
+
+    private void doGetAll(ServerRequest req, ServerResponse res) {
+        TracerAndSpan tracerAndSpan = spanFromHttp(req, "doGetAll");
+        Span span = tracerAndSpan.span();
+        try {
+            repository.getRoles(null)
+                    .orTimeout(30, TimeUnit.SECONDS)
+                    .thenAccept(roles -> {
+                        Tracing.restoreTracingContext(req.tracer(), span);
+                        if (roles == null) {
+                            res.status(Http.Status.NOT_FOUND_404).send();
+                        } else {
+                            StringBuffer jsonRoles = new StringBuffer("{ \"roles\": [");
+                            for (Role role : roles) {
+                                LOG.info("role: {}", role.getRoleId());
+                                jsonRoles.append(ProtobufJsonUtils.toString(role)).append(',');
+                            }
+                            jsonRoles.deleteCharAt(jsonRoles.length()-1);
+                            jsonRoles.append("]}");
+                            res.send(jsonRoles);
+                            traceOutputMessage(span, jsonRoles.toString());
                         }
                     }).thenRun(span::finish)
                     .exceptionally(t -> {
