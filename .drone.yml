@@ -64,7 +64,7 @@ steps:
   - name: publish-docker-image
     image: plugins/gcr
     settings:
-      repo: prod-bip/dataset-access
+      repo: prod-bip/dapla-user-access
       registry: eu.gcr.io
       tags: "${DRONE_BRANCH}-${DRONE_COMMIT_SHA:0:8}"
       json_key:
@@ -142,10 +142,10 @@ steps:
     commands:
       - echo $JSON_KEY | docker login -u _json_key --password-stdin https://eu.gcr.io
       # Pull the image
-      - docker pull "eu.gcr.io/prod-bip/dataset-access:master-${DRONE_COMMIT_SHA:0:8}"
+      - docker pull "eu.gcr.io/prod-bip/dapla-user-access:master-${DRONE_COMMIT_SHA:0:8}"
       # Tag the image with the git tag ($DRONE_TAG)
-      - docker tag "eu.gcr.io/prod-bip/dataset-access:master-${DRONE_COMMIT_SHA:0:8}" "eu.gcr.io/prod-bip/dataset-access:${DRONE_TAG}"
-      - docker push "eu.gcr.io/prod-bip/dataset-access:${DRONE_TAG}"
+      - docker tag "eu.gcr.io/prod-bip/dapla-user-access:master-${DRONE_COMMIT_SHA:0:8}" "eu.gcr.io/prod-bip/dapla-user-access:${DRONE_TAG}"
+      - docker push "eu.gcr.io/prod-bip/dapla-user-access:${DRONE_TAG}"
     environment:
       JSON_KEY:
         from_secret: gcr_credentials
@@ -174,7 +174,7 @@ steps:
     depends_on:
       - tag-docker-image
 
-# Socket used by 'tag-docker-image' step to communicate with the docker daemon.
+# Socket used by the 'tag-docker-image' step to communicate with the docker daemon.
 volumes:
   - name: dockersock
     host:
