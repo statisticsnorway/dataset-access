@@ -33,6 +33,8 @@ import no.ssb.datasetaccess.role.RoleRepository;
 import no.ssb.datasetaccess.user.UserGrpcService;
 import no.ssb.datasetaccess.user.UserHttpService;
 import no.ssb.datasetaccess.user.UserRepository;
+import no.ssb.datasetaccess.catalog.CatalogHttpService;
+import no.ssb.datasetaccess.catalog.CatalogRepository;
 import no.ssb.helidon.application.AuthorizationInterceptor;
 import no.ssb.helidon.application.DefaultHelidonApplication;
 import no.ssb.helidon.application.HelidonApplication;
@@ -81,6 +83,8 @@ public class UserAccessApplication extends DefaultHelidonApplication {
 
         // reactive postgres client
         PgPool pgPool = new HealthAwarePgPool(initPgPool(config.get("pgpool")), lastReadySample);
+        // reactive postgres client for catalog
+        PgPool pgPoolCatalog = new HealthAwarePgPool(initPgPool(config.get("pgpoolCatalog")), lastReadySample);
 
         // initialize health, including a database connectivity wait-loop
         Health health = new Health(config, pgPool, lastReadySample, () -> get(WebServer.class));
@@ -91,9 +95,12 @@ public class UserAccessApplication extends DefaultHelidonApplication {
         // repositories
         UserRepository userRepository = new UserRepository(pgPool);
         RoleRepository roleRepository = new RoleRepository(pgPool);
+        CatalogRepository catalogRepository = new CatalogRepository(pgPoolCatalog);
         put(PgPool.class, pgPool);
+        put(PgPool.class, pgPoolCatalog);
         put(UserRepository.class, userRepository);
         put(RoleRepository.class, roleRepository);
+        put(CatalogRepository.class, catalogRepository);
 
         // services
         AccessService accessService = new AccessService(userRepository, roleRepository);
@@ -138,6 +145,7 @@ public class UserAccessApplication extends DefaultHelidonApplication {
                 .register("/role", new RoleHttpService(roleRepository))
                 .register("/user", new UserHttpService(userRepository))
                 .register("/access", new AccessHttpService(accessService))
+                .register("/catalog", new CatalogHttpService(catalogRepository))
                 .register("/rpc", new HelidonGrpcWebTranscoding(
                         () -> ManagedChannelBuilder
                                 .forAddress("localhost", Optional.of(grpcServer)

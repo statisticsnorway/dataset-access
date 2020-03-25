@@ -26,6 +26,7 @@ module no.ssb.datasetaccess {
     requires opentracing.grpc;
 
     requires no.ssb.dapla.auth.dataset.protobuf;
+    requires no.ssb.dapla.catalog.protobuf;
     requires no.ssb.helidon.media.protobuf.json.server;
     requires grpc.protobuf;
     requires io.helidon.grpc.server;
