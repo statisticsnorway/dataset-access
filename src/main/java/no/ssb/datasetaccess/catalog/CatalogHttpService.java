@@ -44,8 +44,7 @@ public class CatalogHttpService implements Service {
                             StringBuffer jsonCatalogs = new StringBuffer("{ \"catalogs\": [");
                             for (Dataset catalog : catalogs) {
                                 LOG.info("catalog: {}", catalog);
-                                jsonCatalogs.append("\"catalog\":").append(catalog).append(',');
-                            }
+                                jsonCatalogs.append(ProtobufJsonUtils.toString(catalog)).append(',');                            }
                             jsonCatalogs.deleteCharAt(jsonCatalogs.length() - 1);
                             jsonCatalogs.append("]}");
                             res.send(jsonCatalogs);
