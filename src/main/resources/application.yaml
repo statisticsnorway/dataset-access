@@ -17,16 +17,6 @@ pgpool:
   pool-options:
     max-size: 5
 
-pgpoolCatalog:
-  connect-options:
-    port: 25432
-    host: localhost
-    database: catalog
-    user: catalog
-    password: catalog
-  pool-options:
-    max-size: 5
-
 flyway:
   url: jdbc:postgresql://localhost:25432/user_access
   user: user_access
