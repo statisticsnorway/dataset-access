@@ -16,6 +16,10 @@ import org.eclipse.microprofile.metrics.MetricRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public class GroupRepository {
@@ -51,6 +55,52 @@ public class GroupRepository {
                 Group group = ProtobufJsonUtils.toPojo(Json.encode(jsonObject), Group.class);
                 future.complete(group);
                 groupsReadCount.inc();
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+        return future;
+    }
+
+    public CompletableFuture<List<Group>> getGroups(Collection<String> groupIds) {
+        if (groupIds == null || groupIds.isEmpty()) {
+            return CompletableFuture.completedFuture(Collections.emptyList());
+        }
+
+        CompletableFuture<List<Group>> future = new CompletableFuture<>();
+        StringBuilder sb = new StringBuilder("SELECT groupId, document FROM UserGroup WHERE groupId IN (");
+        Tuple arguments = Tuple.tuple();
+        int i = 1;
+        for (String groupId : groupIds) {
+            if (i > 1) {
+                sb.append(",");
+            }
+            sb.append("$").append(i);
+            arguments.addString(groupId);
+            i++;
+        }
+        sb.append(") ORDER BY groupId");
+        client.preparedQuery(sb.toString(), arguments, ar -> {
+            try {
+                if (!ar.succeeded()) {
+                    future.completeExceptionally(ar.cause());
+                    return;
+                }
+                RowSet<Row> result = ar.result();
+                List<Group> groups = new ArrayList<>(result.rowCount());
+                RowIterator<Row> iterator = result.iterator();
+                if (!iterator.hasNext()) {
+                    future.complete(Collections.emptyList());
+                    return;
+                }
+                while (iterator.hasNext()) {
+                    Row row = iterator.next();
+                    String json = Json.encode(row.get(JsonObject.class, 1));
+                    Group group = ProtobufJsonUtils.toPojo(json, Group.class);
+                    groups.add(group);
+                }
+                future.complete(groups);
+                groupsReadCount.inc(result.rowCount());
             } catch (Throwable t) {
                 future.completeExceptionally(t);
             }

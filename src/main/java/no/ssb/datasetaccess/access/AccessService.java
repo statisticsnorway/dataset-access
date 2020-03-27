@@ -1,25 +1,38 @@
 package no.ssb.datasetaccess.access;
 
+import com.google.protobuf.LazyStringArrayList;
 import io.opentracing.Span;
 import no.ssb.dapla.auth.dataset.protobuf.DatasetState;
+import no.ssb.dapla.auth.dataset.protobuf.DatasetStateSet;
+import no.ssb.dapla.auth.dataset.protobuf.Group;
+import no.ssb.dapla.auth.dataset.protobuf.PathSet;
 import no.ssb.dapla.auth.dataset.protobuf.Privilege;
+import no.ssb.dapla.auth.dataset.protobuf.PrivilegeSet;
 import no.ssb.dapla.auth.dataset.protobuf.Role;
 import no.ssb.dapla.auth.dataset.protobuf.Valuation;
+import no.ssb.datasetaccess.group.GroupRepository;
 import no.ssb.datasetaccess.role.RoleRepository;
 import no.ssb.datasetaccess.user.UserRepository;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
-import java.util.NavigableSet;
-import java.util.TreeSet;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
+
+import static java.util.Optional.ofNullable;
 
 public class AccessService {
 
     final UserRepository userRepository;
+    final GroupRepository groupRepository;
     final RoleRepository roleRepository;
 
-    public AccessService(UserRepository userRepository, RoleRepository roleRepository) {
+    public AccessService(UserRepository userRepository, GroupRepository groupRepository, RoleRepository roleRepository) {
         this.userRepository = userRepository;
+        this.groupRepository = groupRepository;
         this.roleRepository = roleRepository;
     }
 
@@ -32,39 +45,106 @@ public class AccessService {
                 future.complete(false);
                 return;
             }
-            roleRepository.getRoles(user.getRolesList()).thenAccept(roles -> {
-                for (Role role : roles) {
-                    span.log(Map.of("event", "checking role", "roleId", role.getRoleId()));
-                    if (role == null) {
-                        continue;
-                    }
-                    if (!role.getPrivileges().getIncludesList().contains(privilege)) {
-                        continue;
-                    }
-                    NavigableSet<String> namespacePrefixes = new TreeSet<>(role.getPaths().getIncludesList());
-                    String floor = namespacePrefixes.floor(namespace);
-                    if (floor == null || !namespace.startsWith(floor)) {
-                        continue;
-                    }
-                    InternalValuation maxInternalValuation = InternalValuation.valueOf(role.getMaxValuation().name());
-                    InternalValuation internalValuation = InternalValuation.valueOf(valuation.name());
-                    if (!maxInternalValuation.grantsAccessTo(internalValuation)) {
-                        continue;
-                    }
-                    if (!role.getStates().getIncludesList().contains(state)) {
-                        continue;
-                    }
-                    span.log(Map.of("event", "access granted", "roleId", role.getRoleId()));
-                    future.complete(true);
-                    return;
+            groupRepository.getGroups(user.getGroupsList()).thenAccept(groups -> {
+                List<String> roleIds = new ArrayList<>(user.getRolesList());
+                for (Group group : groups) {
+                    roleIds.addAll(group.getRolesList());
                 }
-                span.log("access denied");
-                future.complete(false);
-            }).exceptionally(t -> {
-                future.completeExceptionally(t);
-                return null;
+                roleRepository.getRoles(roleIds).thenAccept(roles -> {
+                    for (Role role : roles) {
+                        span.log(Map.of("event", "checking role", "roleId", role.getRoleId()));
+                        if (!matchRole(role, privilege, namespace, valuation, state)) {
+                            continue;
+                        }
+                        span.log(Map.of("event", "access granted", "roleId", role.getRoleId()));
+                        future.complete(true);
+                        return;
+                    }
+                    span.log("access denied");
+                    future.complete(false);
+                }).exceptionally(t -> {
+                    future.completeExceptionally(t);
+                    return null;
+                });
+
             });
         });
         return future;
+    }
+
+
+    private boolean matchRole(Role role, Privilege privilege, String path, Valuation valuation, DatasetState state) {
+        if (!matchPrivileges(ofNullable(role.getPrivileges()), privilege::equals)) {
+            return false;
+        }
+        if (!matchPaths(ofNullable(role.getPaths()), path::startsWith)) {
+            return false;
+        }
+        InternalValuation maxInternalValuation = InternalValuation.valueOf(role.getMaxValuation().name());
+        InternalValuation internalValuation = InternalValuation.valueOf(valuation.name());
+        if (!maxInternalValuation.grantsAccessTo(internalValuation)) {
+            return false;
+        }
+        if (!matchStates(ofNullable(role.getStates()), state::equals)) {
+            return false;
+        }
+        return true; // all criteria matched
+    }
+
+    private boolean matchPrivileges(Optional<PrivilegeSet> criterionNode, Function<Privilege, Boolean> matcher) {
+        List<Privilege> excludes = criterionNode.map(PrivilegeSet::getExcludesList).orElse(Collections.emptyList());
+        for (Privilege exclude : excludes) {
+            if (matcher.apply(exclude)) {
+                return false; // exclude matches
+            }
+        }
+        List<Privilege> includes = criterionNode.map(PrivilegeSet::getIncludesList).orElse(Collections.emptyList());
+        if (includes.isEmpty()) {
+            return true; // empty include set always matches
+        }
+        for (Privilege include : includes) {
+            if (matcher.apply(include)) {
+                return true; // include matches
+            }
+        }
+        return false; // non-empty include set, but no matches
+    }
+
+    private boolean matchPaths(Optional<PathSet> criterionNode, Function<String, Boolean> matcher) {
+        List<String> excludes = criterionNode.map(PathSet::getExcludesList).orElse(LazyStringArrayList.EMPTY);
+        for (String exclude : excludes) {
+            if (matcher.apply(exclude)) {
+                return false; // exclude matches
+            }
+        }
+        List<String> includes = criterionNode.map(PathSet::getIncludesList).orElse(LazyStringArrayList.EMPTY);
+        if (includes.isEmpty()) {
+            return true; // empty include set always matches
+        }
+        for (String include : includes) {
+            if (matcher.apply(include)) {
+                return true; // include matches
+            }
+        }
+        return false; // non-empty include set, but no matches
+    }
+
+    private boolean matchStates(Optional<DatasetStateSet> criterionNode, Function<DatasetState, Boolean> matcher) {
+        List<DatasetState> excludes = criterionNode.map(DatasetStateSet::getExcludesList).orElse(Collections.emptyList());
+        for (DatasetState exclude : excludes) {
+            if (matcher.apply(exclude)) {
+                return false; // exclude matches
+            }
+        }
+        List<DatasetState> includes = criterionNode.map(DatasetStateSet::getIncludesList).orElse(Collections.emptyList());
+        if (includes.isEmpty()) {
+            return true; // empty include set always matches
+        }
+        for (DatasetState include : includes) {
+            if (matcher.apply(include)) {
+                return true; // include matches
+            }
+        }
+        return false; // non-empty include set, but no matches
     }
 }

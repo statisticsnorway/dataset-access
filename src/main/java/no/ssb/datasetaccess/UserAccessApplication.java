@@ -98,7 +98,7 @@ public class UserAccessApplication extends DefaultHelidonApplication {
         put(RoleRepository.class, roleRepository);
 
         // services
-        AccessService accessService = new AccessService(userRepository, roleRepository);
+        AccessService accessService = new AccessService(userRepository, groupRepository, roleRepository);
         AccessGrpcService accessGrpcService = new AccessGrpcService(accessService);
 
         // grpc-server
