@@ -1,9 +1,12 @@
 package no.ssb.datasetaccess.role;
 
+import no.ssb.dapla.auth.dataset.protobuf.DatasetState;
+import no.ssb.dapla.auth.dataset.protobuf.DatasetStateSet;
+import no.ssb.dapla.auth.dataset.protobuf.PathSet;
+import no.ssb.dapla.auth.dataset.protobuf.Privilege;
+import no.ssb.dapla.auth.dataset.protobuf.PrivilegeSet;
 import no.ssb.dapla.auth.dataset.protobuf.Role;
-import no.ssb.dapla.auth.dataset.protobuf.Role.DatasetState;
-import no.ssb.dapla.auth.dataset.protobuf.Role.Privilege;
-import no.ssb.dapla.auth.dataset.protobuf.Role.Valuation;
+import no.ssb.dapla.auth.dataset.protobuf.Valuation;
 import no.ssb.datasetaccess.UserAccessApplication;
 import no.ssb.testing.helidon.IntegrationTestExtension;
 import no.ssb.testing.helidon.ResponseHelper;
@@ -35,13 +38,19 @@ class RoleServiceHttpTest {
         application.get(RoleRepository.class).deleteAllRoles().get(3, TimeUnit.SECONDS);
     }
 
-    Role createRole(String roleId, Iterable<Privilege> privileges, Iterable<String> namespacePrefixes, Valuation maxValuation, Iterable<DatasetState> states) {
+    Role createRole(String roleId, Iterable<Privilege> privilegeIncludes, Iterable<String> pathIncludes, Valuation maxValuation, Iterable<DatasetState> stateIncludes) {
         Role role = Role.newBuilder()
                 .setRoleId(roleId)
-                .addAllPrivileges(privileges)
-                .addAllNamespacePrefixes(namespacePrefixes)
+                .setPrivileges(PrivilegeSet.newBuilder()
+                        .addAllIncludes(privilegeIncludes)
+                        .build())
+                .setPaths(PathSet.newBuilder()
+                        .addAllIncludes(pathIncludes)
+                        .build())
                 .setMaxValuation(maxValuation)
-                .addAllStates(states)
+                .setStates(DatasetStateSet.newBuilder()
+                        .addAllIncludes(stateIncludes)
+                        .build())
                 .build();
         try {
             application.get(RoleRepository.class).createOrUpdateRole(role).get(3, TimeUnit.SECONDS);
@@ -71,10 +80,16 @@ class RoleServiceHttpTest {
     void thatPutRoleWorks() {
         Role expectedRole = Role.newBuilder()
                 .setRoleId("reader")
-                .addAllPrivileges(List.of(Privilege.READ))
-                .addAllNamespacePrefixes(List.of("/ns/1"))
+                .setPrivileges(PrivilegeSet.newBuilder()
+                        .addIncludes(Privilege.READ)
+                        .build())
+                .setPaths(PathSet.newBuilder()
+                        .addIncludes("/ns/1")
+                        .build())
                 .setMaxValuation(Valuation.SHIELDED)
-                .addAllStates(List.of(DatasetState.RAW, DatasetState.INPUT, DatasetState.PROCESSED))
+                .setStates(DatasetStateSet.newBuilder()
+                        .addAllIncludes(List.of(DatasetState.RAW, DatasetState.INPUT, DatasetState.PROCESSED))
+                        .build())
                 .build();
         ResponseHelper<String> helper = client.put("/role/reader", expectedRole).expect201Created();
         assertEquals("/role/reader", helper.response().headers().firstValue("Location").orElseThrow());
@@ -86,24 +101,38 @@ class RoleServiceHttpTest {
     void thatCreateUpsertPutRoleWorks() {
         Role upsert_role = Role.newBuilder()
                 .setRoleId("upsert_role")
-                .addAllPrivileges(List.of(Privilege.CREATE, Privilege.READ))
-                .addAllNamespacePrefixes(List.of("/a/b/c"))
+                .setPrivileges(PrivilegeSet.newBuilder()
+                        .addIncludes(Privilege.CREATE)
+                        .addIncludes(Privilege.READ)
+                        .build())
+                .setPaths(PathSet.newBuilder()
+                        .addIncludes("/a/b/c")
+                        .build())
                 .setMaxValuation(Valuation.INTERNAL)
-                .addAllStates(List.of(DatasetState.RAW, DatasetState.INPUT))
+                .setStates(DatasetStateSet.newBuilder()
+                        .addAllIncludes(List.of(DatasetState.RAW, DatasetState.INPUT))
+                        .build())
                 .build();
         client.put("/role/upsert_role", upsert_role).expect201Created();
         Role role1 = readRole("upsert_role");
-        assertEquals(List.of(Privilege.CREATE, Privilege.READ), role1.getPrivilegesList());
+        assertEquals(List.of(Privilege.CREATE, Privilege.READ), role1.getPrivileges().getIncludesList());
         Role another_upsert_role = Role.newBuilder()
                 .setRoleId("upsert_role")
-                .addAllPrivileges(List.of(Privilege.UPDATE, Privilege.DELETE))
-                .addAllNamespacePrefixes(List.of("//d/e"))
+                .setPrivileges(PrivilegeSet.newBuilder().
+                        addIncludes(Privilege.UPDATE)
+                        .addIncludes(Privilege.DELETE)
+                        .build())
+                .setPaths(PathSet.newBuilder()
+                        .addIncludes("//d/e")
+                        .build())
                 .setMaxValuation(Valuation.SHIELDED)
-                .addAllStates(List.of(DatasetState.PROCESSED))
+                .setStates(DatasetStateSet.newBuilder()
+                        .addIncludes(DatasetState.PROCESSED)
+                        .build())
                 .build();
         client.put("/role/upsert_role", another_upsert_role).expect201Created();
         Role role2 = readRole("upsert_role");
-        assertEquals(List.of(Privilege.UPDATE, Privilege.DELETE), role2.getPrivilegesList());
+        assertEquals(List.of(Privilege.UPDATE, Privilege.DELETE), role2.getPrivileges().getIncludesList());
     }
 
     @Test

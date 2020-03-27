@@ -7,7 +7,9 @@ import io.opentracing.Span;
 import no.ssb.dapla.auth.dataset.protobuf.AccessCheckRequest;
 import no.ssb.dapla.auth.dataset.protobuf.AccessCheckResponse;
 import no.ssb.dapla.auth.dataset.protobuf.AuthServiceGrpc;
-import no.ssb.dapla.auth.dataset.protobuf.Role;
+import no.ssb.dapla.auth.dataset.protobuf.DatasetState;
+import no.ssb.dapla.auth.dataset.protobuf.Privilege;
+import no.ssb.dapla.auth.dataset.protobuf.Valuation;
 import no.ssb.helidon.application.TracerAndSpan;
 import no.ssb.helidon.application.Tracing;
 import org.slf4j.Logger;
@@ -34,10 +36,10 @@ public class AccessGrpcService extends AuthServiceGrpc.AuthServiceImplBase {
         Span span = tracerAndSpan.span();
         try {
             String userId = request.getUserId();
-            Role.Privilege privilege = Role.Privilege.valueOf(request.getPrivilege());
+            Privilege privilege = Privilege.valueOf(request.getPrivilege());
             String namespace = request.getNamespace();
-            Role.Valuation valuation = Role.Valuation.valueOf(request.getValuation());
-            Role.DatasetState state = Role.DatasetState.valueOf(request.getState());
+            Valuation valuation = Valuation.valueOf(request.getValuation());
+            DatasetState state = DatasetState.valueOf(request.getState());
             accessService.hasAccess(span, userId, privilege, namespace, valuation, state)
                     .orTimeout(10, TimeUnit.SECONDS)
                     .thenAccept(access -> {

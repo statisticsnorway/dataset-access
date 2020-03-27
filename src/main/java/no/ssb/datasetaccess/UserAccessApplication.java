@@ -24,13 +24,13 @@ import io.vertx.sqlclient.PoolOptions;
 import no.ssb.datasetaccess.access.AccessGrpcService;
 import no.ssb.datasetaccess.access.AccessHttpService;
 import no.ssb.datasetaccess.access.AccessService;
+import no.ssb.datasetaccess.group.GroupHttpService;
+import no.ssb.datasetaccess.group.GroupRepository;
 import no.ssb.datasetaccess.health.Health;
 import no.ssb.datasetaccess.health.HealthAwarePgPool;
 import no.ssb.datasetaccess.health.ReadinessSample;
-import no.ssb.datasetaccess.role.RoleGrpcService;
 import no.ssb.datasetaccess.role.RoleHttpService;
 import no.ssb.datasetaccess.role.RoleRepository;
-import no.ssb.datasetaccess.user.UserGrpcService;
 import no.ssb.datasetaccess.user.UserHttpService;
 import no.ssb.datasetaccess.user.UserRepository;
 import no.ssb.helidon.application.AuthorizationInterceptor;
@@ -90,16 +90,16 @@ public class UserAccessApplication extends DefaultHelidonApplication {
 
         // repositories
         UserRepository userRepository = new UserRepository(pgPool);
+        GroupRepository groupRepository = new GroupRepository(pgPool);
         RoleRepository roleRepository = new RoleRepository(pgPool);
         put(PgPool.class, pgPool);
         put(UserRepository.class, userRepository);
+        put(GroupRepository.class, groupRepository);
         put(RoleRepository.class, roleRepository);
 
         // services
         AccessService accessService = new AccessService(userRepository, roleRepository);
         AccessGrpcService accessGrpcService = new AccessGrpcService(accessService);
-        RoleGrpcService roleGrpcService = new RoleGrpcService(roleRepository);
-        UserGrpcService userGrpcService = new UserGrpcService(userRepository);
 
         // grpc-server
         GrpcServer grpcServer = GrpcServer.create(
@@ -122,8 +122,6 @@ public class UserAccessApplication extends DefaultHelidonApplication {
                 GrpcRouting.builder()
                         .intercept(new AuthorizationInterceptor())
                         .register(accessGrpcService)
-                        .register(roleGrpcService)
-                        .register(userGrpcService)
                         .build()
         );
         put(GrpcServer.class, grpcServer);
@@ -137,6 +135,7 @@ public class UserAccessApplication extends DefaultHelidonApplication {
                 .register(health)
                 .register("/role", new RoleHttpService(roleRepository))
                 .register("/user", new UserHttpService(userRepository))
+                .register("/group", new GroupHttpService(groupRepository))
                 .register("/access", new AccessHttpService(accessService))
                 .register("/rpc", new HelidonGrpcWebTranscoding(
                         () -> ManagedChannelBuilder
@@ -146,9 +145,7 @@ public class UserAccessApplication extends DefaultHelidonApplication {
                                         .orElseThrow())
                                 .usePlaintext()
                                 .build(),
-                        accessGrpcService,
-                        roleGrpcService,
-                        userGrpcService
+                        accessGrpcService
                 ))
                 .build();
         put(Routing.class, routing);

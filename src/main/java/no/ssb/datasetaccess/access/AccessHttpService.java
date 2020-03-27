@@ -7,7 +7,9 @@ import io.helidon.webserver.ServerRequest;
 import io.helidon.webserver.ServerResponse;
 import io.helidon.webserver.Service;
 import io.opentracing.Span;
-import no.ssb.dapla.auth.dataset.protobuf.Role;
+import no.ssb.dapla.auth.dataset.protobuf.DatasetState;
+import no.ssb.dapla.auth.dataset.protobuf.Privilege;
+import no.ssb.dapla.auth.dataset.protobuf.Valuation;
 import no.ssb.helidon.application.TracerAndSpan;
 import no.ssb.helidon.application.Tracing;
 import org.eclipse.microprofile.metrics.Counter;
@@ -45,16 +47,16 @@ public class AccessHttpService implements Service {
         try {
             String userId = req.path().param("userId");
             span.setTag("userId", userId);
-            Role.Privilege privilege = Role.Privilege.valueOf(req.queryParams().first("privilege").orElseThrow());
+            Privilege privilege = Privilege.valueOf(req.queryParams().first("privilege").orElseThrow());
             span.setTag("privilege", privilege.name());
             String namespace = req.queryParams().first("namespace").orElseThrow();
             if (!namespace.startsWith("/")) {
                 namespace = "/" + namespace;
             }
             span.setTag("namespace", namespace);
-            Role.Valuation valuation = Role.Valuation.valueOf(req.queryParams().first("valuation").orElseThrow());
+            Valuation valuation = Valuation.valueOf(req.queryParams().first("valuation").orElseThrow());
             span.setTag("valuation", valuation.name());
-            Role.DatasetState state = Role.DatasetState.valueOf(req.queryParams().first("state").orElseThrow());
+            DatasetState state = DatasetState.valueOf(req.queryParams().first("state").orElseThrow());
             span.setTag("state", state.name());
             Timer.Context timerContext = accessTimer.time();
             accessService.hasAccess(span, userId, privilege, namespace, valuation, state)

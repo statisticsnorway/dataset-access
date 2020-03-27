@@ -1,7 +1,10 @@
 package no.ssb.datasetaccess.access;
 
 import io.opentracing.Span;
+import no.ssb.dapla.auth.dataset.protobuf.DatasetState;
+import no.ssb.dapla.auth.dataset.protobuf.Privilege;
 import no.ssb.dapla.auth.dataset.protobuf.Role;
+import no.ssb.dapla.auth.dataset.protobuf.Valuation;
 import no.ssb.datasetaccess.role.RoleRepository;
 import no.ssb.datasetaccess.user.UserRepository;
 
@@ -20,7 +23,7 @@ public class AccessService {
         this.roleRepository = roleRepository;
     }
 
-    CompletableFuture<Boolean> hasAccess(Span span, String userId, Role.Privilege privilege, String namespace, Role.Valuation valuation, Role.DatasetState state) {
+    CompletableFuture<Boolean> hasAccess(Span span, String userId, Privilege privilege, String namespace, Valuation valuation, DatasetState state) {
         CompletableFuture<Boolean> future = new CompletableFuture<>();
         span.log("calling userRepository.getUser()");
         userRepository.getUser(userId).thenAccept(user -> {
@@ -35,10 +38,10 @@ public class AccessService {
                     if (role == null) {
                         continue;
                     }
-                    if (!role.getPrivilegesList().contains(privilege)) {
+                    if (!role.getPrivileges().getIncludesList().contains(privilege)) {
                         continue;
                     }
-                    NavigableSet<String> namespacePrefixes = new TreeSet<>(role.getNamespacePrefixesList());
+                    NavigableSet<String> namespacePrefixes = new TreeSet<>(role.getPaths().getIncludesList());
                     String floor = namespacePrefixes.floor(namespace);
                     if (floor == null || !namespace.startsWith(floor)) {
                         continue;
@@ -48,7 +51,7 @@ public class AccessService {
                     if (!maxInternalValuation.grantsAccessTo(internalValuation)) {
                         continue;
                     }
-                    if (!role.getStatesList().contains(state)) {
+                    if (!role.getStates().getIncludesList().contains(state)) {
                         continue;
                     }
                     span.log(Map.of("event", "access granted", "roleId", role.getRoleId()));
