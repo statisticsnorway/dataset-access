@@ -14,11 +14,12 @@ import no.ssb.datasetaccess.group.GroupRepository;
 import no.ssb.datasetaccess.role.RoleRepository;
 import no.ssb.datasetaccess.user.UserRepository;
 
-import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
@@ -46,7 +47,7 @@ public class AccessService {
                 return;
             }
             groupRepository.getGroups(user.getGroupsList()).thenAccept(groups -> {
-                List<String> roleIds = new ArrayList<>(user.getRolesList());
+                Set<String> roleIds = new LinkedHashSet<>(user.getRolesList());
                 for (Group group : groups) {
                     roleIds.addAll(group.getRolesList());
                 }
