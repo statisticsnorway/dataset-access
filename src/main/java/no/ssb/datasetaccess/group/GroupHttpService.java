@@ -10,11 +10,14 @@ import io.opentracing.Span;
 import no.ssb.dapla.auth.dataset.protobuf.Group;
 import no.ssb.helidon.application.TracerAndSpan;
 import no.ssb.helidon.application.Tracing;
+import no.ssb.helidon.media.protobuf.ProtobufJsonUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static no.ssb.helidon.application.Tracing.spanFromHttp;
-import static no.ssb.helidon.application.Tracing.traceInputMessage;
+import java.util.concurrent.TimeUnit;
+
+import static no.ssb.helidon.application.Tracing.*;
+import static no.ssb.helidon.application.Tracing.logError;
 
 public class GroupHttpService implements Service {
 
@@ -28,6 +31,7 @@ public class GroupHttpService implements Service {
 
     @Override
     public void update(Routing.Rules rules) {
+        rules.get("/", this::doGetList);
         rules.get("/{groupId}", this::doGet);
         rules.put("/{groupId}", Handler.create(Group.class, this::doPut));
         rules.delete("/{groupId}", this::doDelete);
@@ -68,6 +72,52 @@ public class GroupHttpService implements Service {
         }
     }
 
+    private void doGetList(ServerRequest req, ServerResponse res) {
+        TracerAndSpan tracerAndSpan = spanFromHttp(req, "doGetAll");
+        Span span = tracerAndSpan.span();
+        try {
+            repository.getGroups(null)
+                    .orTimeout(30, TimeUnit.SECONDS)
+                    .thenAccept(groups -> {
+                        Tracing.restoreTracingContext(req.tracer(), span);
+                        if (groups == null) {
+                            res.status(Http.Status.NOT_FOUND_404).send();
+                        } else {
+                            LOG.info("groups: {}", groups);
+                            LOG.info("groups: {}", groups.size());
+                            StringBuffer jsonGroups = new StringBuffer("{ \"groups\": [");
+                            for (Group group : groups) {
+                                LOG.info("group: {}", group.getGroupId());
+                                jsonGroups.append(ProtobufJsonUtils.toString(group)).append(',');
+                            }
+                            jsonGroups.deleteCharAt(jsonGroups.length()-1);
+                            jsonGroups.append("]}");
+                            res.send(jsonGroups);
+                            traceOutputMessage(span, jsonGroups.toString());
+                        }
+                    }).thenRun(span::finish)
+                    .exceptionally(t -> {
+                        try {
+                            Tracing.restoreTracingContext(req.tracer(), span);
+                            logError(span, t);
+                            res.status(Http.Status.INTERNAL_SERVER_ERROR_500).send(t.getMessage());
+                            return null;
+                        } finally {
+                            span.finish();
+                        }
+                    });
+        } catch (RuntimeException | Error e) {
+            try {
+                logError(span, e);
+                LOG.error("unexpected error", e);
+                throw e;
+            } finally {
+                span.finish();
+            }
+        }
+    }
+
+    
     private void doPut(ServerRequest req, ServerResponse res, Group group) {
         TracerAndSpan tracerAndSpan = spanFromHttp(req, "doPut");
         Span span = tracerAndSpan.span();

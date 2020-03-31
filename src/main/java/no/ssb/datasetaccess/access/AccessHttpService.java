@@ -49,17 +49,18 @@ public class AccessHttpService implements Service {
             span.setTag("userId", userId);
             Privilege privilege = Privilege.valueOf(req.queryParams().first("privilege").orElseThrow());
             span.setTag("privilege", privilege.name());
-            String namespace = req.queryParams().first("namespace").orElseThrow();
-            if (!namespace.startsWith("/")) {
-                namespace = "/" + namespace;
+            LOG.info("param privilege: {}", privilege.name());
+            String path = req.queryParams().first("path").orElseThrow();
+            if (!path.startsWith("/")) {
+                path = "/" + path;
             }
-            span.setTag("namespace", namespace);
+            span.setTag("path", path);
             Valuation valuation = Valuation.valueOf(req.queryParams().first("valuation").orElseThrow());
             span.setTag("valuation", valuation.name());
             DatasetState state = DatasetState.valueOf(req.queryParams().first("state").orElseThrow());
             span.setTag("state", state.name());
             Timer.Context timerContext = accessTimer.time();
-            accessService.hasAccess(span, userId, privilege, namespace, valuation, state)
+            accessService.hasAccess(span, userId, privilege, path, valuation, state)
                     .orTimeout(10, TimeUnit.SECONDS)
                     .thenAccept(access -> {
                         Tracing.restoreTracingContext(tracerAndSpan);

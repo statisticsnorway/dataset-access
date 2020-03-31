@@ -37,10 +37,10 @@ public class AccessGrpcService extends AuthServiceGrpc.AuthServiceImplBase {
         try {
             String userId = request.getUserId();
             Privilege privilege = Privilege.valueOf(request.getPrivilege());
-            String namespace = request.getNamespace();
+            String path = request.getNamespace();
             Valuation valuation = Valuation.valueOf(request.getValuation());
             DatasetState state = DatasetState.valueOf(request.getState());
-            accessService.hasAccess(span, userId, privilege, namespace, valuation, state)
+            accessService.hasAccess(span, userId, privilege, path, valuation, state)
                     .orTimeout(10, TimeUnit.SECONDS)
                     .thenAccept(access -> {
                         Tracing.restoreTracingContext(tracerAndSpan);

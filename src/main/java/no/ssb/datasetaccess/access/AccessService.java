@@ -36,7 +36,7 @@ public class AccessService {
         this.roleRepository = roleRepository;
     }
 
-    CompletableFuture<Boolean> hasAccess(Span span, String userId, Privilege privilege, String namespace, Valuation valuation, DatasetState state) {
+    CompletableFuture<Boolean> hasAccess(Span span, String userId, Privilege privilege, String path, Valuation valuation, DatasetState state) {
         CompletableFuture<Boolean> future = new CompletableFuture<>();
         span.log("calling userRepository.getUser()");
         userRepository.getUser(userId).thenAccept(user -> {
@@ -53,7 +53,7 @@ public class AccessService {
                 roleRepository.getRoles(roleIds).thenAccept(roles -> {
                     for (Role role : roles) {
                         span.log(Map.of("event", "checking role", "roleId", role.getRoleId()));
-                        if (!matchRole(role, privilege, namespace, valuation, state)) {
+                        if (!matchRole(role, privilege, path, valuation, state)) {
                             continue;
                         }
                         span.log(Map.of("event", "access granted", "roleId", role.getRoleId()));
