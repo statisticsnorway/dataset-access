@@ -49,7 +49,7 @@ public class AccessHttpService implements Service {
             span.setTag("userId", userId);
             Privilege privilege = Privilege.valueOf(req.queryParams().first("privilege").orElseThrow());
             span.setTag("privilege", privilege.name());
-            LOG.info("param privilege: {}", privilege.name());
+//            LOG.info("param privilege: {}", privilege != null ? privilege.name() : "null");
             String path = req.queryParams().first("path").orElseThrow();
             if (!path.startsWith("/")) {
                 path = "/" + path;

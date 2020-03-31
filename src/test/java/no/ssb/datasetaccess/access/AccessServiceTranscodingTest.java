@@ -80,31 +80,31 @@ class AccessServiceTranscodingTest {
     void thatGetAccessWorks() {
         createUser("john_can_update", List.of("updater"));
         createRole("updater", List.of(Privilege.UPDATE), List.of("/ns/test"), Valuation.INTERNAL, List.of(DatasetState.RAW, DatasetState.INPUT));
-        assertTrue(client.post("/rpc/AuthService/hasAccess", AccessCheckRequest.newBuilder().setUserId("john_can_update").setPrivilege("UPDATE").setNamespace("/ns/test").setValuation("INTERNAL").setState("RAW").build(), AccessCheckResponse.class).expect200Ok().body().getAllowed());
+        assertTrue(client.post("/rpc/AuthService/hasAccess", AccessCheckRequest.newBuilder().setUserId("john_can_update").setPrivilege("UPDATE").setPath("/ns/test").setValuation("INTERNAL").setState("RAW").build(), AccessCheckResponse.class).expect200Ok().body().getAllowed());
     }
 
     @Test
     void GetAccessWhenUserDoesntHaveTheAppropriateNamespaceReturns403() {
         createUser("john_with_missing_ns", List.of("creator"));
         createRole("creator", List.of(Privilege.CREATE), List.of("/ns/test/a", "/test"), Valuation.OPEN, List.of(DatasetState.OTHER));
-        assertFalse(client.post("/rpc/AuthService/hasAccess", AccessCheckRequest.newBuilder().setUserId("john_with_missing_ns").setPrivilege("CREATE").setNamespace("/ns/test").setValuation("OPEN").setState("OTHER").build(), AccessCheckResponse.class).expect200Ok().body().getAllowed());
+        assertFalse(client.post("/rpc/AuthService/hasAccess", AccessCheckRequest.newBuilder().setUserId("john_with_missing_ns").setPrivilege("CREATE").setPath("/ns/test").setValuation("OPEN").setState("OTHER").build(), AccessCheckResponse.class).expect200Ok().body().getAllowed());
     }
 
     @Test
     void thatGetAccessWhenUserDoesntHaveTheAppropriatePrivilegeReturns403() {
         createUser("john_cant_delete", List.of("updater"));
         createRole("updater", List.of(Privilege.UPDATE), List.of("/ns/test"), Valuation.SHIELDED, List.of(DatasetState.PROCESSED));
-        assertFalse(client.post("/rpc/AuthService/hasAccess", AccessCheckRequest.newBuilder().setUserId("john_cant_delete").setPrivilege("DELETE").setNamespace("/ns/test").setValuation("SHIELDED").setState("PROCESSED").build(), AccessCheckResponse.class).expect200Ok().body().getAllowed());
+        assertFalse(client.post("/rpc/AuthService/hasAccess", AccessCheckRequest.newBuilder().setUserId("john_cant_delete").setPrivilege("DELETE").setPath("/ns/test").setValuation("SHIELDED").setState("PROCESSED").build(), AccessCheckResponse.class).expect200Ok().body().getAllowed());
     }
 
     @Test
     void thatGetAccessOnUserWithoutAppropriateRolesReturns403() {
-        assertFalse(client.post("/rpc/AuthService/hasAccess", AccessCheckRequest.newBuilder().setUserId("john_without_roles").setPrivilege("DELETE").setNamespace("test").setValuation("SENSITIVE").setState("RAW").build(), AccessCheckResponse.class).expect200Ok().body().getAllowed());
+        assertFalse(client.post("/rpc/AuthService/hasAccess", AccessCheckRequest.newBuilder().setUserId("john_without_roles").setPrivilege("DELETE").setPath("test").setValuation("SENSITIVE").setState("RAW").build(), AccessCheckResponse.class).expect200Ok().body().getAllowed());
     }
 
     @Test
     void thatGetAccessOnNonExistingUserReturns403() {
-        assertFalse(client.post("/rpc/AuthService/hasAccess", AccessCheckRequest.newBuilder().setUserId("does_not_exist").setPrivilege("READ").setNamespace("a").setValuation("SENSITIVE").setState("RAW").build(), AccessCheckResponse.class).expect200Ok().body().getAllowed());
+        assertFalse(client.post("/rpc/AuthService/hasAccess", AccessCheckRequest.newBuilder().setUserId("does_not_exist").setPrivilege("READ").setPath("a").setValuation("SENSITIVE").setState("RAW").build(), AccessCheckResponse.class).expect200Ok().body().getAllowed());
     }
 
     @Test
@@ -112,8 +112,8 @@ class AccessServiceTranscodingTest {
         createUser("john_two_roles", List.of("updater", "reader"));
         createRole("updater", List.of(Privilege.UPDATE), List.of("/ns/test"), Valuation.INTERNAL, List.of(DatasetState.RAW, DatasetState.INPUT));
         createRole("reader", List.of(Privilege.READ), List.of("/ns/test"), Valuation.INTERNAL, List.of(DatasetState.RAW, DatasetState.INPUT));
-        assertTrue(client.post("/rpc/AuthService/hasAccess", AccessCheckRequest.newBuilder().setUserId("john_two_roles").setPrivilege("UPDATE").setNamespace("/ns/test").setValuation("INTERNAL").setState("RAW").build(), AccessCheckResponse.class).expect200Ok().body().getAllowed());
-        assertTrue(client.post("/rpc/AuthService/hasAccess", AccessCheckRequest.newBuilder().setUserId("john_two_roles").setPrivilege("READ").setNamespace("/ns/test").setValuation("INTERNAL").setState("RAW").build(), AccessCheckResponse.class).expect200Ok().body().getAllowed());
-        assertFalse(client.post("/rpc/AuthService/hasAccess", AccessCheckRequest.newBuilder().setUserId("john_two_roles").setPrivilege("DELETE").setNamespace("/ns/test").setValuation("INTERNAL").setState("RAW").build(), AccessCheckResponse.class).expect200Ok().body().getAllowed());
+        assertTrue(client.post("/rpc/AuthService/hasAccess", AccessCheckRequest.newBuilder().setUserId("john_two_roles").setPrivilege("UPDATE").setPath("/ns/test").setValuation("INTERNAL").setState("RAW").build(), AccessCheckResponse.class).expect200Ok().body().getAllowed());
+        assertTrue(client.post("/rpc/AuthService/hasAccess", AccessCheckRequest.newBuilder().setUserId("john_two_roles").setPrivilege("READ").setPath("/ns/test").setValuation("INTERNAL").setState("RAW").build(), AccessCheckResponse.class).expect200Ok().body().getAllowed());
+        assertFalse(client.post("/rpc/AuthService/hasAccess", AccessCheckRequest.newBuilder().setUserId("john_two_roles").setPrivilege("DELETE").setPath("/ns/test").setValuation("INTERNAL").setState("RAW").build(), AccessCheckResponse.class).expect200Ok().body().getAllowed());
     }
 }

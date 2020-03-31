@@ -37,7 +37,7 @@ public class AccessGrpcService extends AuthServiceGrpc.AuthServiceImplBase {
         try {
             String userId = request.getUserId();
             Privilege privilege = Privilege.valueOf(request.getPrivilege());
-            String path = request.getNamespace();
+            String path = request.getPath();
             Valuation valuation = Valuation.valueOf(request.getValuation());
             DatasetState state = DatasetState.valueOf(request.getState());
             accessService.hasAccess(span, userId, privilege, path, valuation, state)

@@ -63,33 +63,30 @@ public class GroupRepository {
     }
 
     public CompletableFuture<List<Group>> getGroups(Collection<String> groupIds) {
-        CompletableFuture<List<Group>> future = new CompletableFuture<>();
-        StringBuilder sb = new StringBuilder("SELECT groupId, document FROM UserGroup ");
-        Tuple arguments = Tuple.tuple();
-        int i = 1;
-        if (groupIds != null && groupIds.size() > 0) {
-            sb.append("WHERE groupId IN (");
-            for (String groupId : groupIds) {
-                if (i > 1) {
-                    sb.append(",");
-                }
-                sb.append("$").append(i);
-                arguments.addString(groupId);
-                i++;
-            }
-            sb.append(") ");
+        if (groupIds == null || groupIds.isEmpty()) {
+            return CompletableFuture.completedFuture(Collections.emptyList());
         }
 
-        sb.append("ORDER BY groupId");
-        LOG.info("query: {}", sb.toString());
-        LOG.info("arguments: {}", arguments);
+        CompletableFuture<List<Group>> future = new CompletableFuture<>();
+        StringBuilder sb = new StringBuilder("SELECT groupId, document FROM UserGroup WHERE groupId IN (");
+        Tuple arguments = Tuple.tuple();
+        int i = 1;
+        for (String groupId : groupIds) {
+            if (i > 1) {
+                sb.append(",");
+            }
+            sb.append("$").append(i);
+            arguments.addString(groupId);
+            i++;
+        }
+        sb.append(") ORDER BY groupId");
+
         client.preparedQuery(sb.toString(), arguments, ar -> {
             try {
                 if (!ar.succeeded()) {
                     future.completeExceptionally(ar.cause());
                     return;
                 }
-                LOG.info("ar: {}", ar);
                 RowSet<Row> result = ar.result();
                 List<Group> groups = new ArrayList<>(result.rowCount());
                 RowIterator<Row> iterator = result.iterator();
@@ -99,7 +96,39 @@ public class GroupRepository {
                 }
                 while (iterator.hasNext()) {
                     Row row = iterator.next();
-                    LOG.info("row: {}", row);
+                    String json = Json.encode(row.get(JsonObject.class, 1));
+                    Group group = ProtobufJsonUtils.toPojo(json, Group.class);
+                    groups.add(group);
+                }
+                future.complete(groups);
+                groupsReadCount.inc(result.rowCount());
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+        return future;
+    }
+
+    public CompletableFuture<List<Group>> getGroupList() {
+        CompletableFuture<List<Group>> future = new CompletableFuture<>();
+        String query = "SELECT groupId, document FROM UserGroup ORDER BY groupId";
+        Tuple arguments = Tuple.tuple();
+        int i = 1;
+        client.preparedQuery(query, arguments, ar -> {
+            try {
+                if (!ar.succeeded()) {
+                    future.completeExceptionally(ar.cause());
+                    return;
+                }
+                RowSet<Row> result = ar.result();
+                List<Group> groups = new ArrayList<>(result.rowCount());
+                RowIterator<Row> iterator = result.iterator();
+                if (!iterator.hasNext()) {
+                    future.complete(Collections.emptyList());
+                    return;
+                }
+                while (iterator.hasNext()) {
+                    Row row = iterator.next();
                     String json = Json.encode(row.get(JsonObject.class, 1));
                     Group group = ProtobufJsonUtils.toPojo(json, Group.class);
                     groups.add(group);

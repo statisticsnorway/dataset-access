@@ -73,21 +73,18 @@ public class GroupHttpService implements Service {
     }
 
     private void doGetList(ServerRequest req, ServerResponse res) {
-        TracerAndSpan tracerAndSpan = spanFromHttp(req, "doGetAll");
+        TracerAndSpan tracerAndSpan = spanFromHttp(req, "doGetList");
         Span span = tracerAndSpan.span();
         try {
-            repository.getGroups(null)
+            repository.getGroupList()
                     .orTimeout(30, TimeUnit.SECONDS)
                     .thenAccept(groups -> {
                         Tracing.restoreTracingContext(req.tracer(), span);
                         if (groups == null) {
                             res.status(Http.Status.NOT_FOUND_404).send();
                         } else {
-                            LOG.info("groups: {}", groups);
-                            LOG.info("groups: {}", groups.size());
                             StringBuffer jsonGroups = new StringBuffer("{ \"groups\": [");
                             for (Group group : groups) {
-                                LOG.info("group: {}", group.getGroupId());
                                 jsonGroups.append(ProtobufJsonUtils.toString(group)).append(',');
                             }
                             jsonGroups.deleteCharAt(jsonGroups.length()-1);

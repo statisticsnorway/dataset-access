@@ -13,6 +13,8 @@ import no.ssb.dapla.auth.dataset.protobuf.Valuation;
 import no.ssb.datasetaccess.group.GroupRepository;
 import no.ssb.datasetaccess.role.RoleRepository;
 import no.ssb.datasetaccess.user.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -26,6 +28,8 @@ import java.util.function.Function;
 import static java.util.Optional.ofNullable;
 
 public class AccessService {
+    private static final Logger LOG = LoggerFactory.getLogger(AccessService.class);
+
 
     final UserRepository userRepository;
     final GroupRepository groupRepository;
@@ -78,6 +82,7 @@ public class AccessService {
         if (!matchPrivileges(ofNullable(role.getPrivileges()), privilege::equals)) {
             return false;
         }
+
         if (!matchPaths(ofNullable(role.getPaths()), path::startsWith)) {
             return false;
         }

@@ -77,7 +77,7 @@ class AccessServiceGrpcTest {
         AccessCheckResponse response = client.hasAccess(AccessCheckRequest.newBuilder()
                 .setUserId("john")
                 .setPrivilege(Privilege.READ.name())
-                .setNamespace("/a/b/c")
+                .setPath("/a/b/c")
                 .setValuation(InternalValuation.OPEN.name())
                 .setState(DatasetState.INPUT.name())
                 .build());
@@ -91,7 +91,7 @@ class AccessServiceGrpcTest {
         AccessCheckResponse response = client.hasAccess(AccessCheckRequest.newBuilder()
                 .setUserId("non_existent_user")
                 .setPrivilege(Privilege.READ.name())
-                .setNamespace("/no/such/dataset")
+                .setPath("/no/such/dataset")
                 .setValuation(InternalValuation.OPEN.name())
                 .setState(DatasetState.INPUT.name())
                 .build());
