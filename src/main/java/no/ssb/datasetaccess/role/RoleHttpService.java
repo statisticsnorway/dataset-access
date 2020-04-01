@@ -82,7 +82,7 @@ public class RoleHttpService implements Service {
         TracerAndSpan tracerAndSpan = spanFromHttp(req, "doGetAll");
         Span span = tracerAndSpan.span();
         try {
-            repository.getRoles(null)
+            repository.getRoleList(null)
                     .orTimeout(30, TimeUnit.SECONDS)
                     .thenAccept(roles -> {
                         Tracing.restoreTracingContext(req.tracer(), span);
@@ -91,7 +91,7 @@ public class RoleHttpService implements Service {
                         } else {
                             StringBuffer jsonRoles = new StringBuffer("{ \"roles\": [");
                             for (Role role : roles) {
-                                LOG.info("role: {}", role.getRoleId());
+                                LOG.info("role: {}", role);
                                 jsonRoles.append(ProtobufJsonUtils.toString(role)).append(',');
                             }
                             jsonRoles.deleteCharAt(jsonRoles.length()-1);
