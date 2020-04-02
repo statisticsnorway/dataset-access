@@ -10,11 +10,14 @@ import io.opentracing.Span;
 import no.ssb.dapla.auth.dataset.protobuf.User;
 import no.ssb.helidon.application.TracerAndSpan;
 import no.ssb.helidon.application.Tracing;
+import no.ssb.helidon.media.protobuf.ProtobufJsonUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static no.ssb.helidon.application.Tracing.spanFromHttp;
-import static no.ssb.helidon.application.Tracing.traceInputMessage;
+import java.util.concurrent.TimeUnit;
+
+import static no.ssb.helidon.application.Tracing.*;
+import static no.ssb.helidon.application.Tracing.logError;
 
 public class UserHttpService implements Service {
 
@@ -28,6 +31,7 @@ public class UserHttpService implements Service {
 
     @Override
     public void update(Routing.Rules rules) {
+        rules.get("/", this::doGetList);
         rules.get("/{userId}", this::doGet);
         rules.put("/{userId}", Handler.create(User.class, this::doPut));
         rules.delete("/{userId}", this::doDelete);
@@ -67,6 +71,51 @@ public class UserHttpService implements Service {
             }
         }
     }
+
+    private void doGetList(ServerRequest req, ServerResponse res) {
+        TracerAndSpan tracerAndSpan = spanFromHttp(req, "doGetList");
+        Span span = tracerAndSpan.span();
+        try {
+            repository.getUserList(null)
+                    .orTimeout(30, TimeUnit.SECONDS)
+                    .thenAccept(users -> {
+                        Tracing.restoreTracingContext(req.tracer(), span);
+                        if (users == null) {
+                            res.status(Http.Status.NOT_FOUND_404).send();
+                        } else {
+                            StringBuffer jsonUsers = new StringBuffer("{\"users\": [");
+                            for (User user : users) {
+                                jsonUsers.append(ProtobufJsonUtils.toString(user)).append(',');
+                            }
+                            if (jsonUsers.indexOf(",") > 0) {
+                                jsonUsers.deleteCharAt(jsonUsers.length()-1);
+                            }
+                            jsonUsers.append("]}");
+                            res.send(jsonUsers);
+                            traceOutputMessage(span, jsonUsers.toString());
+                        }
+                    }).thenRun(span::finish)
+                    .exceptionally(t -> {
+                        try {
+                            Tracing.restoreTracingContext(req.tracer(), span);
+                            logError(span, t);
+                            res.status(Http.Status.INTERNAL_SERVER_ERROR_500).send(t.getMessage());
+                            return null;
+                        } finally {
+                            span.finish();
+                        }
+                    });
+        } catch (RuntimeException | Error e) {
+            try {
+                logError(span, e);
+                LOG.error("unexpected error", e);
+                throw e;
+            } finally {
+                span.finish();
+            }
+        }
+    }
+
 
     private void doPut(ServerRequest req, ServerResponse res, User user) {
         TracerAndSpan tracerAndSpan = spanFromHttp(req, "doPut");

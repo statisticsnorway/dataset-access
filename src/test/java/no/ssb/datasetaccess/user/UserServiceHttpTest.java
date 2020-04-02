@@ -16,8 +16,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 @ExtendWith(IntegrationTestExtension.class)
 class UserServiceHttpTest {
@@ -52,6 +51,18 @@ class UserServiceHttpTest {
         User expected = createUser("john", List.of("reader"));
         User actual = ProtobufJsonUtils.toPojo(client.get("/user/john").expect200Ok().body(), User.class);
         assertEquals(expected, actual);
+    }
+
+    @Test
+    void thatGetUserListWorks() {
+        String userJson = client.get("/user").expect200Ok().body();
+        assertEquals("{\"users\": []}", userJson);
+
+        User user1 = createUser("john", List.of("reader"));
+        User user2 = createUser("mary", List.of("writer"));
+        userJson =(client.get("/user").expect200Ok().body());
+        assertTrue(userJson.contains("john"));
+        assertTrue(userJson.contains(ProtobufJsonUtils.toString(user2)));
     }
 
     @Test
