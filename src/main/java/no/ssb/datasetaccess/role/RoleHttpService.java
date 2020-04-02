@@ -89,12 +89,13 @@ public class RoleHttpService implements Service {
                         if (roles == null) {
                             res.status(Http.Status.NOT_FOUND_404).send();
                         } else {
-                            StringBuffer jsonRoles = new StringBuffer("{ \"roles\": [");
+                            StringBuffer jsonRoles = new StringBuffer("{\"roles\": [");
                             for (Role role : roles) {
-                                LOG.info("role: {}", role);
                                 jsonRoles.append(ProtobufJsonUtils.toString(role)).append(',');
                             }
-                            jsonRoles.deleteCharAt(jsonRoles.length()-1);
+                            if (jsonRoles.indexOf(",") > 0) {
+                                jsonRoles.deleteCharAt(jsonRoles.length()-1);
+                            }
                             jsonRoles.append("]}");
                             res.send(jsonRoles);
                             traceOutputMessage(span, jsonRoles.toString());

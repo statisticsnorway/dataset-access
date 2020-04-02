@@ -1,6 +1,6 @@
 package no.ssb.datasetaccess.group;
 
-import no.ssb.dapla.auth.dataset.protobuf.Group;
+import no.ssb.dapla.auth.dataset.protobuf.*;
 import no.ssb.datasetaccess.UserAccessApplication;
 import no.ssb.helidon.media.protobuf.ProtobufJsonUtils;
 import no.ssb.testing.helidon.IntegrationTestExtension;
@@ -16,8 +16,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @ExtendWith(IntegrationTestExtension.class)
 class GroupServiceHttpTest {
@@ -52,6 +52,21 @@ class GroupServiceHttpTest {
         Group expected = createGroup("Group1", "This is the first group", List.of("reader"));
         Group actual = ProtobufJsonUtils.toPojo(client.get("/group/Group1").expect200Ok().body(), Group.class);
         assertEquals(expected, actual);
+    }
+
+    @Test
+    void thatGetAllGroupsWorks() {
+        String groupJson = client.get("/group").expect200Ok().body();
+        assertEquals("{\"groups\": []}", groupJson);
+
+        Group group1 = createGroup("group1", "This is the first group", List.of("reader"));
+        Group group2 = createGroup("group2", "This is the second group", List.of("writer"));
+        Group group3 = createGroup("group3", "This is the third group", List.of("reader"));
+        groupJson = client.get("/group").expect200Ok().body();
+        assertNotNull(groupJson);
+        assertTrue(groupJson.contains("group1"));
+        assertTrue(groupJson.contains(ProtobufJsonUtils.toString(group2)));
+        assertTrue(groupJson.contains(ProtobufJsonUtils.toString(group3)));
     }
 
     @Test

@@ -1,5 +1,6 @@
 package no.ssb.datasetaccess.role;
 
+import com.google.gson.Gson;
 import no.ssb.dapla.auth.dataset.protobuf.DatasetState;
 import no.ssb.dapla.auth.dataset.protobuf.DatasetStateSet;
 import no.ssb.dapla.auth.dataset.protobuf.PathSet;
@@ -8,24 +9,28 @@ import no.ssb.dapla.auth.dataset.protobuf.PrivilegeSet;
 import no.ssb.dapla.auth.dataset.protobuf.Role;
 import no.ssb.dapla.auth.dataset.protobuf.Valuation;
 import no.ssb.datasetaccess.UserAccessApplication;
+import no.ssb.helidon.media.protobuf.ProtobufJsonUtils;
 import no.ssb.testing.helidon.IntegrationTestExtension;
 import no.ssb.testing.helidon.ResponseHelper;
 import no.ssb.testing.helidon.TestClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 @ExtendWith(IntegrationTestExtension.class)
 class RoleServiceHttpTest {
+    private static final Logger LOG = LoggerFactory.getLogger(RoleServiceHttpTest.class);
 
     @Inject
     UserAccessApplication application;
@@ -38,8 +43,8 @@ class RoleServiceHttpTest {
         application.get(RoleRepository.class).deleteAllRoles().get(3, TimeUnit.SECONDS);
     }
 
-    Role createRole(String roleId, Iterable<Privilege> privilegeIncludes, Iterable<String> pathIncludes, Valuation maxValuation, Iterable<DatasetState> stateIncludes) {
-        Role role = Role.newBuilder()
+    Role buildRole(String roleId, Iterable<Privilege> privilegeIncludes, Iterable<String> pathIncludes, Valuation maxValuation, Iterable<DatasetState> stateIncludes) {
+        return Role.newBuilder()
                 .setRoleId(roleId)
                 .setPrivileges(PrivilegeSet.newBuilder()
                         .addAllIncludes(privilegeIncludes)
@@ -52,6 +57,11 @@ class RoleServiceHttpTest {
                         .addAllIncludes(stateIncludes)
                         .build())
                 .build();
+    }
+
+
+    Role createRole(String roleId, Iterable<Privilege> privilegeIncludes, Iterable<String> pathIncludes, Valuation maxValuation, Iterable<DatasetState> stateIncludes) {
+        Role role = buildRole(roleId, privilegeIncludes, pathIncludes, maxValuation,  stateIncludes);
         try {
             application.get(RoleRepository.class).createOrUpdateRole(role).get(3, TimeUnit.SECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
@@ -66,9 +76,28 @@ class RoleServiceHttpTest {
 
     @Test
     void thatGetRoleWorks() {
-        Role expectedRole = createRole("writer", List.of(Privilege.CREATE, Privilege.UPDATE), List.of("/ns/test"), Valuation.INTERNAL, List.of(DatasetState.RAW, DatasetState.INPUT));
+        Role expectedRole = createRole("writer", List.of(Privilege.CREATE, Privilege.UPDATE),
+                List.of("/ns/test"), Valuation.INTERNAL, List.of(DatasetState.RAW, DatasetState.INPUT));
         Role role = client.get("/role/writer", Role.class).expect200Ok().body();
         assertEquals(expectedRole, role);
+    }
+
+    @Test
+    void thatGetAllRoleWorks() {
+        String roleJson = client.get("/role").expect200Ok().body();
+        assertEquals("{\"roles\": []}", roleJson);
+
+        Role role1 = createRole("writer1", List.of(Privilege.CREATE, Privilege.UPDATE),
+                List.of("/ns/test"), Valuation.INTERNAL, List.of(DatasetState.RAW, DatasetState.INPUT));
+        Role role2 = createRole("writer2", List.of(Privilege.CREATE, Privilege.UPDATE),
+                List.of("/ns/test"), Valuation.INTERNAL, List.of(DatasetState.PROCESSED));
+        Role role3 = createRole("reader1", List.of(Privilege.CREATE, Privilege.UPDATE),
+                List.of("/ns/test2"), Valuation.INTERNAL, List.of(DatasetState.RAW, DatasetState.INPUT));
+        roleJson = client.get("/role").expect200Ok().body();
+        assertNotNull(roleJson);
+        assertTrue(roleJson.contains("writer1"));
+        assertTrue(roleJson.contains(ProtobufJsonUtils.toString(role2)));
+        assertTrue(roleJson.contains(ProtobufJsonUtils.toString(role3)));
     }
 
     @Test
@@ -78,19 +107,8 @@ class RoleServiceHttpTest {
 
     @Test
     void thatPutRoleWorks() {
-        Role expectedRole = Role.newBuilder()
-                .setRoleId("reader")
-                .setPrivileges(PrivilegeSet.newBuilder()
-                        .addIncludes(Privilege.READ)
-                        .build())
-                .setPaths(PathSet.newBuilder()
-                        .addIncludes("/ns/1")
-                        .build())
-                .setMaxValuation(Valuation.SHIELDED)
-                .setStates(DatasetStateSet.newBuilder()
-                        .addAllIncludes(List.of(DatasetState.RAW, DatasetState.INPUT, DatasetState.PROCESSED))
-                        .build())
-                .build();
+        Role expectedRole = buildRole("reader", List.of(Privilege.READ), List.of("/ns/1"),
+                Valuation.SHIELDED, List.of(DatasetState.RAW, DatasetState.INPUT, DatasetState.PROCESSED));
         ResponseHelper<String> helper = client.put("/role/reader", expectedRole).expect201Created();
         assertEquals("/role/reader", helper.response().headers().firstValue("Location").orElseThrow());
         Role role = readRole("reader");
@@ -99,37 +117,14 @@ class RoleServiceHttpTest {
 
     @Test
     void thatCreateUpsertPutRoleWorks() {
-        Role upsert_role = Role.newBuilder()
-                .setRoleId("upsert_role")
-                .setPrivileges(PrivilegeSet.newBuilder()
-                        .addIncludes(Privilege.CREATE)
-                        .addIncludes(Privilege.READ)
-                        .build())
-                .setPaths(PathSet.newBuilder()
-                        .addIncludes("/a/b/c")
-                        .build())
-                .setMaxValuation(Valuation.INTERNAL)
-                .setStates(DatasetStateSet.newBuilder()
-                        .addAllIncludes(List.of(DatasetState.RAW, DatasetState.INPUT))
-                        .build())
-                .build();
+        Role upsert_role = buildRole("upsert_role", List.of(Privilege.CREATE, Privilege.READ),
+                        List.of("/a/b/c"), Valuation.INTERNAL, List.of(DatasetState.RAW, DatasetState.INPUT));
         client.put("/role/upsert_role", upsert_role).expect201Created();
         Role role1 = readRole("upsert_role");
         assertEquals(List.of(Privilege.CREATE, Privilege.READ), role1.getPrivileges().getIncludesList());
-        Role another_upsert_role = Role.newBuilder()
-                .setRoleId("upsert_role")
-                .setPrivileges(PrivilegeSet.newBuilder().
-                        addIncludes(Privilege.UPDATE)
-                        .addIncludes(Privilege.DELETE)
-                        .build())
-                .setPaths(PathSet.newBuilder()
-                        .addIncludes("//d/e")
-                        .build())
-                .setMaxValuation(Valuation.SHIELDED)
-                .setStates(DatasetStateSet.newBuilder()
-                        .addIncludes(DatasetState.PROCESSED)
-                        .build())
-                .build();
+
+        Role another_upsert_role = buildRole("upsert_role", List.of(Privilege.UPDATE, Privilege.DELETE),
+                        List.of("//d/e"), Valuation.SHIELDED, List.of(DatasetState.PROCESSED));
         client.put("/role/upsert_role", another_upsert_role).expect201Created();
         Role role2 = readRole("upsert_role");
         assertEquals(List.of(Privilege.UPDATE, Privilege.DELETE), role2.getPrivileges().getIncludesList());

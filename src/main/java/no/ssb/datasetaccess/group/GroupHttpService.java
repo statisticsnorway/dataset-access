@@ -83,11 +83,13 @@ public class GroupHttpService implements Service {
                         if (groups == null) {
                             res.status(Http.Status.NOT_FOUND_404).send();
                         } else {
-                            StringBuffer jsonGroups = new StringBuffer("{ \"groups\": [");
+                            StringBuffer jsonGroups = new StringBuffer("{\"groups\": [");
                             for (Group group : groups) {
                                 jsonGroups.append(ProtobufJsonUtils.toString(group)).append(',');
                             }
-                            jsonGroups.deleteCharAt(jsonGroups.length()-1);
+                            if (jsonGroups.indexOf(",") > 0) {
+                                jsonGroups.deleteCharAt(jsonGroups.length()-1);
+                            }
                             jsonGroups.append("]}");
                             res.send(jsonGroups);
                             traceOutputMessage(span, jsonGroups.toString());
