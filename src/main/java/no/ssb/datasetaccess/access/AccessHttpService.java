@@ -1,5 +1,7 @@
 package no.ssb.datasetaccess.access;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.helidon.common.http.Http;
 import io.helidon.metrics.RegistryFactory;
 import io.helidon.webserver.Routing;
@@ -21,6 +23,7 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.TimeUnit;
 
 import static no.ssb.helidon.application.Tracing.logError;
+import static no.ssb.helidon.application.Tracing.traceOutputMessage;
 
 public class AccessHttpService implements Service {
 
@@ -39,6 +42,7 @@ public class AccessHttpService implements Service {
     @Override
     public void update(Routing.Rules rules) {
         rules.get("/{userId}", this::httpHasAccess);
+        rules.get("/catalog/{path}/{valuation}/{state}", this::catalogAccess);
     }
 
     private void httpHasAccess(ServerRequest req, ServerResponse res) {
@@ -49,7 +53,6 @@ public class AccessHttpService implements Service {
             span.setTag("userId", userId);
             Privilege privilege = Privilege.valueOf(req.queryParams().first("privilege").orElseThrow());
             span.setTag("privilege", privilege.name());
-//            LOG.info("param privilege: {}", privilege != null ? privilege.name() : "null");
             String path = req.queryParams().first("path").orElseThrow();
             if (!path.startsWith("/")) {
                 path = "/" + path;
@@ -95,4 +98,65 @@ public class AccessHttpService implements Service {
             }
         }
     }
+
+    private void catalogAccess(ServerRequest req, ServerResponse res) {
+        TracerAndSpan tracerAndSpan = Tracing.spanFromHttp(req, "catalogAccess");
+        Span span = tracerAndSpan.span();
+        try {
+            String path = req.path().param("path").replace(".", "/");
+            String valuation = req.path().param("valuation");
+            String state = req.path().param("state");
+            if (!path.startsWith("/")) {
+                path = "/" + path;
+            }
+            span.setTag("path", path);
+            span.setTag("valuation", valuation);
+            span.setTag("state", state);
+            Timer.Context timerContext = accessTimer.time();
+            accessService.catalogAccess(span, path, valuation, state)
+                    .orTimeout(10, TimeUnit.SECONDS)
+                    .thenAccept(catalogAccessList -> {
+                        Tracing.restoreTracingContext(tracerAndSpan);
+                        if (catalogAccessList == null) {
+                            res.status(Http.Status.NOT_FOUND_404).send();
+                        } else {
+                            StringBuffer jsonCatalogAccess = new StringBuffer("{\"catalogAccess\": [");
+                            ObjectMapper objectMapper = new ObjectMapper();
+                            for (Object catalogAccess : catalogAccessList) {
+                                try {
+                                    jsonCatalogAccess.append(objectMapper.writeValueAsString(catalogAccess)).append(',');
+                                } catch (JsonProcessingException e) {
+                                    //TODO: Handle json-exception
+                                    e.printStackTrace();
+                                }
+                            }
+                            if (jsonCatalogAccess.indexOf(",") > 0) {
+                                jsonCatalogAccess.deleteCharAt(jsonCatalogAccess.length()-1);
+                            }
+                            jsonCatalogAccess.append("]}");
+                            res.send(jsonCatalogAccess);
+                            traceOutputMessage(span, jsonCatalogAccess.toString());
+                        }
+                    }).thenRun(span::finish)
+                    .exceptionally(t -> {
+                        try {
+                            Tracing.restoreTracingContext(req.tracer(), span);
+                            logError(span, t);
+                            res.status(Http.Status.INTERNAL_SERVER_ERROR_500).send(t.getMessage());
+                            return null;
+                        } finally {
+                            span.finish();
+                        }
+                    });
+        } catch (RuntimeException | Error e) {
+            try {
+                logError(span, e);
+                LOG.error("unexpected error", e);
+                throw e;
+            } finally {
+                span.finish();
+            }
+        }
+    }
+
 }

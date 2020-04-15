@@ -16,12 +16,7 @@ import no.ssb.datasetaccess.user.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
@@ -79,7 +74,7 @@ public class AccessService {
 
 
     private boolean matchRole(Role role, Privilege privilege, String path, Valuation valuation, DatasetState state) {
-        if (!matchPrivileges(ofNullable(role.getPrivileges()), privilege::equals)) {
+        if (privilege != null && !matchPrivileges(ofNullable(role.getPrivileges()), privilege::equals)) {
             return false;
         }
 
@@ -153,4 +148,57 @@ public class AccessService {
         }
         return false; // non-empty include set, but no matches
     }
+
+    CompletableFuture<List<Map<String, String>>> catalogAccess(Span span, String path, String valuation, String state) {
+        CompletableFuture<List<Map<String, String>>> future = new CompletableFuture<>();
+        List<Map<String, String>> catalogAccess = new ArrayList<>();
+        span.log("userRepository.getUserList()");
+        userRepository.getUserList(null).thenAccept(users -> {
+            span.log("calling roleRepostory.getRoleList()");
+            roleRepository.getRoleList(null).thenAccept(roles -> {
+                span.log("calling groupRepository.getGroupList()");
+                groupRepository.getGroupList().thenAccept(groups -> {
+                    roles.stream()
+                        .filter(role -> matchRole(role, null, path, Valuation.valueOf(valuation), DatasetState.valueOf(state)))
+                        .forEach(role -> {
+                            groups.stream()
+                                .filter(group -> group.getRolesList().contains(role.getRoleId()))
+                                .forEach(group -> {
+                                    users.stream()
+                                        .filter(user -> user.getGroupsList().contains(group.getGroupId()))
+                                        .forEach(user -> {
+                                            catalogAccess.add(Map.of("path", path,"user", user.getUserId(),"role", role.getRoleId(),"group", group.getGroupId(), "privileges", privilegeString(role.getPrivileges())));
+                                        });
+                                });
+                            users.stream()
+                                .filter(user -> user.getRolesList().contains(role.getRoleId()))
+                                .forEach(user -> {
+                                    catalogAccess.add(Map.of("path", path,"user", user.getUserId(),"role", role.getRoleId(),"group", "", "privileges", privilegeString(role.getPrivileges())));
+                                });
+                        });
+                    span.log("return catalogAccess");
+                    future.complete(catalogAccess);
+
+                });
+            });
+        }).exceptionally(t -> {
+            future.completeExceptionally(t);
+            return null;
+        });
+        return future;
+    }
+
+    private String privilegeString(PrivilegeSet privileges) {
+        StringBuilder privilegesString = new StringBuilder();
+        List<Privilege> privs = new ArrayList<>();
+        privileges.getIncludesList().forEach(p -> privs.add(p));
+        if (privs.size() == 0) {
+            privs.addAll(Arrays.asList(Privilege.values()));
+        }
+        privs.remove(Privilege.UNRECOGNIZED);
+        privileges.getExcludesList().forEach(p -> privs.remove(p));
+        privs.forEach(p -> privilegesString.append(p.name()).append(" "));
+        return privilegesString.toString();
+    }
+
 }
