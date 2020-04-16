@@ -42,7 +42,7 @@ class UserAccessApplicationTest {
         try {
             application.start().toCompletableFuture().get(5, TimeUnit.SECONDS);
             TestClient client = TestClient.newClient("localhost", application.get(WebServer.class).port());
-            client.put("/user/a", "{\"userId\": \"a\", \"roles\": []}").expect201Created();
+            client.put("/user/a", "{\"userId\": \"a\", \"roles\": []}", null).expect201Created();
             client.get("/user/a").expect200Ok();
         } finally {
             application.stop();
