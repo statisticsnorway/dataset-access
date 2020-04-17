@@ -9,6 +9,7 @@ import io.vertx.sqlclient.Row;
 import io.vertx.sqlclient.RowIterator;
 import io.vertx.sqlclient.RowSet;
 import io.vertx.sqlclient.Tuple;
+import no.ssb.dapla.auth.dataset.protobuf.Role;
 import no.ssb.dapla.auth.dataset.protobuf.User;
 import no.ssb.helidon.media.protobuf.ProtobufJsonUtils;
 import org.eclipse.microprofile.metrics.Counter;
@@ -16,6 +17,10 @@ import org.eclipse.microprofile.metrics.MetricRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public class UserRepository {
@@ -51,6 +56,47 @@ public class UserRepository {
                 User user = ProtobufJsonUtils.toPojo(Json.encode(jsonObject), User.class);
                 future.complete(user);
                 usersReadCount.inc();
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+        return future;
+    }
+
+    public CompletableFuture<List<User>> getUserList(String userIdPart) {
+        StringBuilder query = new StringBuilder("SELECT userId, document FROM user_permission");
+        if (userIdPart != null && userIdPart.length() > 0) {
+            query.append(" WHERE userId LIKE '%").append(userIdPart).append("%'");
+        }
+        query.append(" ORDER BY userId");
+//        LOG.info("query: {}", query);
+        return getUserList(query, Tuple.tuple());
+    }
+
+    private CompletableFuture<List<User>> getUserList(StringBuilder query, Tuple arguments) {
+        CompletableFuture<List<User>> future = new CompletableFuture<>();
+        client.preparedQuery(query.toString(), arguments, ar -> {
+            try {
+                if (!ar.succeeded()) {
+                    future.completeExceptionally(ar.cause());
+                    return;
+                }
+                RowSet<Row> result = ar.result();
+                List<User> users = new ArrayList<>(result.rowCount());
+                RowIterator<Row> iterator = result.iterator();
+                if (!iterator.hasNext()) {
+                    future.complete(Collections.emptyList());
+                    return;
+                }
+                while (iterator.hasNext()) {
+                    Row row = iterator.next();
+                    String json = Json.encode(row.get(JsonObject.class, 1));
+                    User user = ProtobufJsonUtils.toPojo(json, User.class);
+//                    LOG.info("rolle: {}", user);
+                    users.add(user);
+                }
+                future.complete(users);
+                usersReadCount.inc(result.rowCount());
             } catch (Throwable t) {
                 future.completeExceptionally(t);
             }

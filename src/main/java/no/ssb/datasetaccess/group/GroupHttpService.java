@@ -1,4 +1,4 @@
-package no.ssb.datasetaccess.user;
+package no.ssb.datasetaccess.group;
 
 import io.helidon.common.http.Http;
 import io.helidon.webserver.Handler;
@@ -7,7 +7,7 @@ import io.helidon.webserver.ServerRequest;
 import io.helidon.webserver.ServerResponse;
 import io.helidon.webserver.Service;
 import io.opentracing.Span;
-import no.ssb.dapla.auth.dataset.protobuf.User;
+import no.ssb.dapla.auth.dataset.protobuf.Group;
 import no.ssb.helidon.application.TracerAndSpan;
 import no.ssb.helidon.application.Tracing;
 import no.ssb.helidon.media.protobuf.ProtobufJsonUtils;
@@ -19,37 +19,37 @@ import java.util.concurrent.TimeUnit;
 import static no.ssb.helidon.application.Tracing.*;
 import static no.ssb.helidon.application.Tracing.logError;
 
-public class UserHttpService implements Service {
+public class GroupHttpService implements Service {
 
-    private static final Logger LOG = LoggerFactory.getLogger(UserHttpService.class);
+    private static final Logger LOG = LoggerFactory.getLogger(GroupHttpService.class);
 
-    final UserRepository repository;
+    final GroupRepository repository;
 
-    public UserHttpService(UserRepository repository) {
+    public GroupHttpService(GroupRepository repository) {
         this.repository = repository;
     }
 
     @Override
     public void update(Routing.Rules rules) {
         rules.get("/", this::doGetList);
-        rules.get("/{userId}", this::doGet);
-        rules.put("/{userId}", Handler.create(User.class, this::doPut));
-        rules.delete("/{userId}", this::doDelete);
+        rules.get("/{groupId}", this::doGet);
+        rules.put("/{groupId}", Handler.create(Group.class, this::doPut));
+        rules.delete("/{groupId}", this::doDelete);
     }
 
     private void doGet(ServerRequest req, ServerResponse res) {
         TracerAndSpan tracerAndSpan = spanFromHttp(req, "doGet");
         Span span = tracerAndSpan.span();
         try {
-            String userId = req.path().param("userId");
-            span.setTag("userId", userId);
-            repository.getUser(userId)
-                    .thenAccept(user -> {
+            String groupId = req.path().param("groupId");
+            span.setTag("groupId", groupId);
+            repository.getGroup(groupId)
+                    .thenAccept(group -> {
                         Tracing.restoreTracingContext(req.tracer(), span);
-                        if (user == null) {
+                        if (group == null) {
                             res.status(Http.Status.NOT_FOUND_404).send();
                         } else {
-                            res.send(user);
+                            res.send(group);
                         }
                     }).thenRun(span::finish)
                     .exceptionally(t -> {
@@ -76,23 +76,23 @@ public class UserHttpService implements Service {
         TracerAndSpan tracerAndSpan = spanFromHttp(req, "doGetList");
         Span span = tracerAndSpan.span();
         try {
-            repository.getUserList(null)
+            repository.getGroupList()
                     .orTimeout(30, TimeUnit.SECONDS)
-                    .thenAccept(users -> {
+                    .thenAccept(groups -> {
                         Tracing.restoreTracingContext(req.tracer(), span);
-                        if (users == null) {
+                        if (groups == null) {
                             res.status(Http.Status.NOT_FOUND_404).send();
                         } else {
-                            StringBuffer jsonUsers = new StringBuffer("{\"users\": [");
-                            for (User user : users) {
-                                jsonUsers.append(ProtobufJsonUtils.toString(user)).append(',');
+                            StringBuffer jsonGroups = new StringBuffer("{\"groups\": [");
+                            for (Group group : groups) {
+                                jsonGroups.append(ProtobufJsonUtils.toString(group)).append(',');
                             }
-                            if (jsonUsers.indexOf(",") > 0) {
-                                jsonUsers.deleteCharAt(jsonUsers.length()-1);
+                            if (jsonGroups.indexOf(",") > 0) {
+                                jsonGroups.deleteCharAt(jsonGroups.length()-1);
                             }
-                            jsonUsers.append("]}");
-                            res.send(jsonUsers);
-                            traceOutputMessage(span, jsonUsers.toString());
+                            jsonGroups.append("]}");
+                            res.send(jsonGroups);
+                            traceOutputMessage(span, jsonGroups.toString());
                         }
                     }).thenRun(span::finish)
                     .exceptionally(t -> {
@@ -116,22 +116,22 @@ public class UserHttpService implements Service {
         }
     }
 
-
-    private void doPut(ServerRequest req, ServerResponse res, User user) {
+    
+    private void doPut(ServerRequest req, ServerResponse res, Group group) {
         TracerAndSpan tracerAndSpan = spanFromHttp(req, "doPut");
         Span span = tracerAndSpan.span();
         try {
-            traceInputMessage(span, user);
-            String userId = req.path().param("userId");
-            span.setTag("userId", userId);
-            if (!userId.equals(user.getUserId())) {
-                res.status(Http.Status.BAD_REQUEST_400).send("userId in path must match that in body");
+            traceInputMessage(span, group);
+            String groupId = req.path().param("groupId");
+            span.setTag("groupId", groupId);
+            if (!groupId.equals(group.getGroupId())) {
+                res.status(Http.Status.BAD_REQUEST_400).send("groupId in path must match that in body");
                 return;
             }
-            repository.createOrUpdateUser(user)
+            repository.createOrUpdateGroup(group)
                     .thenRun(() -> {
                         Tracing.restoreTracingContext(req.tracer(), span);
-                        res.headers().add("Location", "/user/" + userId);
+                        res.headers().add("Location", "/group/" + groupId);
                         res.status(Http.Status.CREATED_201).send();
                     }).thenRun(span::finish)
                     .exceptionally(t -> {
@@ -158,9 +158,9 @@ public class UserHttpService implements Service {
         TracerAndSpan tracerAndSpan = spanFromHttp(req, "doDelete");
         Span span = tracerAndSpan.span();
         try {
-            String userId = req.path().param("userId");
-            span.setTag("userId", userId);
-            repository.deleteUser(userId)
+            String groupId = req.path().param("groupId");
+            span.setTag("groupId", groupId);
+            repository.deleteGroup(groupId)
                     .thenRun(() -> {
                         Tracing.restoreTracingContext(req.tracer(), span);
                         res.send();

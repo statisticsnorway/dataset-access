@@ -9,7 +9,7 @@ Determine if a given user can access a given dataset
 
 * **URL**
 
-    `/access/:userId?privilege=<privilege>&namespace=<namespace>&valuation=<valuation>&state=<state>`
+    `/access/:userId?privilege=<privilege>&path=<path>&valuation=<valuation>&state=<state>`
 
 * **Method**
     
@@ -27,7 +27,7 @@ Determine if a given user can access a given dataset
     
     `privilege=["CREATE", "READ", "UPDATE" or "DELETE"]`
     
-    `namespace=[string]`
+    `path=[string]`
      
     `valuation=["OPEN", "INTERNAL", "SHIELDED" or "SENSITIVE"]`
     
@@ -45,9 +45,9 @@ Determine if a given user can access a given dataset
     
 * **Sample Call:**
     
-    Note: The slashes in '`namespace=/ns/test`' are url-escaped 
+    Note: The slashes in '`path=/ns/test`' are url-escaped 
     ```bash
-    $ curl -i "http://localhost:8080/access/123?privilege=UPDATE&namespace=%2Fns%2Ftest&valuation=INTERNAL&state=RAW"
+    $ curl -i "http://localhost:8080/access/123?privilege=UPDATE&path=%2Fns%2Ftest&valuation=INTERNAL&state=RAW"
     HTTP/1.1 200 OK
     ``` 
 
@@ -79,7 +79,7 @@ Return data about a single role
             "CREATE",
             "UPDATE"
           ],
-          "namespacePrefixes": [
+          "pathPrefixes": [
             "/ns/test"
           ],
           "maxValuation": "INTERNAL",
@@ -103,7 +103,7 @@ Return data about a single role
     $ curl -i http://localhost:8080/role/123
     HTTP/1.1 200 OK
   
-    {"roleId":"123","privileges":["UPDATE","CREATE"],"namespacePrefixes":["/ns/test"],"maxValuation":"INTERNAL","states":["RAW","INPUT"]}
+    {"roleId":"123","privileges":["UPDATE","CREATE"],"pathPrefixes":["/ns/test"],"maxValuation":"INTERNAL","states":["RAW","INPUT"]}
     ``` 
 
 ## Create role
@@ -132,7 +132,7 @@ Create a new role
         "CREATE",
         "UPDATE"
       ],
-      "namespacePrefixes": [
+      "pathPrefixes": [
         "/ns/test"
       ],
       "maxValuation": "INTERNAL",
@@ -160,7 +160,7 @@ Create a new role
 * **Sample Call:**
 
     ```bash
-    $ curl -i -X PUT -d '{"roleId":"123","privileges":["CREATE","UPDATE"],"namespacePrefixes":["/ns/test"],"maxValuation":"INTERNAL","states":["INPUT","RAW"]}' http://localhost:8080/role/123 
+    $ curl -i -X PUT -d '{"roleId":"123","privileges":["CREATE","UPDATE"],"pathPrefixes":["/ns/test"],"maxValuation":"INTERNAL","states":["INPUT","RAW"]}' http://localhost:8080/role/123 
     HTTP/1.1 201 Created
     Location: /role/123
     ```

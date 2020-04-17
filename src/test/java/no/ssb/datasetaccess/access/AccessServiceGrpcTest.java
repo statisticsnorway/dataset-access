@@ -4,11 +4,14 @@ import io.grpc.Channel;
 import no.ssb.dapla.auth.dataset.protobuf.AccessCheckRequest;
 import no.ssb.dapla.auth.dataset.protobuf.AccessCheckResponse;
 import no.ssb.dapla.auth.dataset.protobuf.AuthServiceGrpc;
+import no.ssb.dapla.auth.dataset.protobuf.DatasetState;
+import no.ssb.dapla.auth.dataset.protobuf.DatasetStateSet;
+import no.ssb.dapla.auth.dataset.protobuf.PathSet;
+import no.ssb.dapla.auth.dataset.protobuf.Privilege;
+import no.ssb.dapla.auth.dataset.protobuf.PrivilegeSet;
 import no.ssb.dapla.auth.dataset.protobuf.Role;
-import no.ssb.dapla.auth.dataset.protobuf.Role.DatasetState;
-import no.ssb.dapla.auth.dataset.protobuf.Role.Privilege;
-import no.ssb.dapla.auth.dataset.protobuf.Role.Valuation;
 import no.ssb.dapla.auth.dataset.protobuf.User;
+import no.ssb.dapla.auth.dataset.protobuf.Valuation;
 import no.ssb.datasetaccess.UserAccessApplication;
 import no.ssb.datasetaccess.role.RoleRepository;
 import no.ssb.datasetaccess.user.UserRepository;
@@ -43,13 +46,19 @@ class AccessServiceGrpcTest {
         }
     }
 
-    void createRole(String roleId, Iterable<Privilege> privileges, Iterable<String> namespacePrefixes, Valuation maxValuation, Iterable<DatasetState> states) {
+    void createRole(String roleId, Iterable<Privilege> privilegeIncludes, Iterable<String> pathIncludes, Valuation maxValuation, Iterable<DatasetState> stateIncludes) {
         Role role = Role.newBuilder()
                 .setRoleId(roleId)
-                .addAllPrivileges(privileges)
-                .addAllNamespacePrefixes(namespacePrefixes)
+                .setPrivileges(PrivilegeSet.newBuilder()
+                        .addAllIncludes(privilegeIncludes)
+                        .build())
+                .setPaths(PathSet.newBuilder()
+                        .addAllIncludes(pathIncludes)
+                        .build())
                 .setMaxValuation(maxValuation)
-                .addAllStates(states)
+                .setStates(DatasetStateSet.newBuilder()
+                        .addAllIncludes(stateIncludes)
+                        .build())
                 .build();
         try {
             application.get(RoleRepository.class).createOrUpdateRole(role).get(3, TimeUnit.SECONDS);
@@ -68,7 +77,7 @@ class AccessServiceGrpcTest {
         AccessCheckResponse response = client.hasAccess(AccessCheckRequest.newBuilder()
                 .setUserId("john")
                 .setPrivilege(Privilege.READ.name())
-                .setNamespace("/a/b/c")
+                .setPath("/a/b/c")
                 .setValuation(InternalValuation.OPEN.name())
                 .setState(DatasetState.INPUT.name())
                 .build());
@@ -82,7 +91,7 @@ class AccessServiceGrpcTest {
         AccessCheckResponse response = client.hasAccess(AccessCheckRequest.newBuilder()
                 .setUserId("non_existent_user")
                 .setPrivilege(Privilege.READ.name())
-                .setNamespace("/no/such/dataset")
+                .setPath("/no/such/dataset")
                 .setValuation(InternalValuation.OPEN.name())
                 .setState(DatasetState.INPUT.name())
                 .build());

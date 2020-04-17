@@ -63,24 +63,40 @@ public class RoleRepository {
     }
 
     public CompletableFuture<List<Role>> getRoles(Collection<String> roleIds) {
-        if (roleIds == null || roleIds.isEmpty()) {
-            return CompletableFuture.completedFuture(Collections.emptyList());
-        }
-
-        CompletableFuture<List<Role>> future = new CompletableFuture<>();
-        StringBuilder sb = new StringBuilder("SELECT roleId, document FROM role WHERE roleId IN (");
+        StringBuilder query = new StringBuilder("SELECT roleId, document FROM role");
         Tuple arguments = Tuple.tuple();
-        int i = 1;
-        for (String roleId : roleIds) {
-            if (i > 1) {
-                sb.append(",");
+        if (roleIds != null && roleIds.size() > 0) {
+            query.append(" WHERE roleId IN (");
+            int i = 1;
+            for (String roleId : roleIds) {
+                if (i > 1) {
+                    query.append(",");
+                }
+                query.append("$").append(i);
+                arguments.addString(roleId);
+                i++;
             }
-            sb.append("$").append(i);
-            arguments.addString(roleId);
-            i++;
+            query.append(")");
         }
-        sb.append(") ORDER BY roleId");
-        client.preparedQuery(sb.toString(), arguments, ar -> {
+        query.append(" ORDER BY roleId");
+//        LOG.info("query: {}", query);
+        return getRoleList(query, arguments);
+
+    }
+
+    public CompletableFuture<List<Role>> getRoleList(String roleIdPart) {
+        StringBuilder query = new StringBuilder("SELECT roleId, document FROM role");
+        if (roleIdPart != null && roleIdPart.length() > 0) {
+            query.append(" WHERE roleId LIKE '%").append(roleIdPart).append("%'");
+        }
+        query.append(" ORDER BY roleId");
+//        LOG.info("query: {}", query);
+        return getRoleList(query, Tuple.tuple());
+    }
+
+    private CompletableFuture<List<Role>> getRoleList(StringBuilder query, Tuple arguments) {
+        CompletableFuture<List<Role>> future = new CompletableFuture<>();
+        client.preparedQuery(query.toString(), arguments, ar -> {
             try {
                 if (!ar.succeeded()) {
                     future.completeExceptionally(ar.cause());
@@ -97,6 +113,7 @@ public class RoleRepository {
                     Row row = iterator.next();
                     String json = Json.encode(row.get(JsonObject.class, 1));
                     Role role = ProtobufJsonUtils.toPojo(json, Role.class);
+//                    LOG.info("rolle: {}", role);
                     roles.add(role);
                 }
                 future.complete(roles);
