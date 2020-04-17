@@ -75,32 +75,32 @@ class AccessServiceHttpTest {
     void thatGetAccessWorks() {
         createUser("john_can_update", List.of("updater"));
         createRole("updater", List.of(Privilege.UPDATE), List.of("/ns/test"), Valuation.INTERNAL, List.of(DatasetState.RAW, DatasetState.INPUT));
-        client.get("/access/john_can_update?privilege=UPDATE&namespace=/ns/test&valuation=INTERNAL&state=RAW").expect200Ok();
+        client.get("/access/john_can_update?privilege=UPDATE&path=/ns/test&valuation=INTERNAL&state=RAW").expect200Ok();
     }
 
     @Test
-    void GetAccessWhenUserDoesntHaveTheAppropriateNamespaceReturns403() {
+    void GetAccessWhenUserDoesntHaveTheAppropriatePathReturns403() {
         createUser("john_with_missing_ns", List.of("creator"));
         createRole("creator", List.of(Privilege.CREATE), List.of("/ns/test/a", "/test"), Valuation.OPEN, List.of(DatasetState.OTHER));
-        client.get("/access/john_with_missing_ns?privilege=CREATE&namespace=/ns/test&valuation=OPEN&state=OTHER").expect403Forbidden();
+        client.get("/access/john_with_missing_ns?privilege=CREATE&path=/ns/test&valuation=OPEN&state=OTHER").expect403Forbidden();
     }
 
     @Test
     void thatGetAccessWhenUserDoesntHaveTheAppropriatePrivilegeReturns403() {
         createUser("john_cant_delete", List.of("updater"));
         createRole("updater", List.of(Privilege.UPDATE), List.of("/ns/test"), Valuation.SHIELDED, List.of(DatasetState.PROCESSED));
-        client.get("/access/john_cant_delete?privilege=DELETE&namespace=/ns/test&valuation=SHIELDED&state=PROCESSED").expect403Forbidden();
+        client.get("/access/john_cant_delete?privilege=DELETE&path=/ns/test&valuation=SHIELDED&state=PROCESSED").expect403Forbidden();
     }
 
     @Test
     void thatGetAccessOnUserWithoutAppropriateRolesReturns403() {
         createUser("john_without_roles", List.of("reader"));
-        client.get("/access/john_without_roles?privilege=DELETE&namespace=test&valuation=SENSITIVE&state=RAW").expect403Forbidden();
+        client.get("/access/john_without_roles?privilege=DELETE&path=test&valuation=SENSITIVE&state=RAW").expect403Forbidden();
     }
 
     @Test
     void thatGetAccessOnNonExistingUserReturns403() {
-        client.get("/access/does_not_exist?privilege=READ&namespace=a&valuation=SENSITIVE&state=RAW").expect403Forbidden();
+        client.get("/access/does_not_exist?privilege=READ&path=a&valuation=SENSITIVE&state=RAW").expect403Forbidden();
     }
 
     @Test
@@ -108,8 +108,8 @@ class AccessServiceHttpTest {
         createUser("john_two_roles", List.of("updater", "reader"));
         createRole("updater", List.of(Privilege.UPDATE), List.of("/ns/test"), Valuation.INTERNAL, List.of(DatasetState.RAW, DatasetState.INPUT));
         createRole("reader", List.of(Privilege.READ), List.of("/ns/test"), Valuation.INTERNAL, List.of(DatasetState.RAW, DatasetState.INPUT));
-        client.get("/access/john_two_roles?privilege=UPDATE&namespace=/ns/test&valuation=INTERNAL&state=RAW").expect200Ok();
-        client.get("/access/john_two_roles?privilege=READ&namespace=/ns/test&valuation=INTERNAL&state=RAW").expect200Ok();
-        client.get("/access/john_two_roles?privilege=DELETE&namespace=/ns/test&valuation=INTERNAL&state=RAW").expect403Forbidden();
+        client.get("/access/john_two_roles?privilege=UPDATE&path=/ns/test&valuation=INTERNAL&state=RAW").expect200Ok();
+        client.get("/access/john_two_roles?privilege=READ&path=/ns/test&valuation=INTERNAL&state=RAW").expect200Ok();
+        client.get("/access/john_two_roles?privilege=DELETE&path=/ns/test&valuation=INTERNAL&state=RAW").expect403Forbidden();
     }
 }
