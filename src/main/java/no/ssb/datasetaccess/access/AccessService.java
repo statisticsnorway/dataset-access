@@ -159,22 +159,16 @@ public class AccessService {
                 span.log("calling groupRepository.getGroupList()");
                 groupRepository.getGroupList().thenAccept(groups -> {
                     roles.stream()
-                        .filter(role -> matchRole(role, null, path, Valuation.valueOf(valuation), DatasetState.valueOf(state)))
+                        .filter(role -> matchRole(role, null, path, Valuation.valueOf(valuation.toUpperCase()), DatasetState.valueOf(state.toUpperCase())))
                         .forEach(role -> {
                             groups.stream()
                                 .filter(group -> group.getRolesList().contains(role.getRoleId()))
-                                .forEach(group -> {
-                                    users.stream()
-                                        .filter(user -> user.getGroupsList().contains(group.getGroupId()))
-                                        .forEach(user -> {
-                                            catalogAccess.add(Map.of("path", path,"user", user.getUserId(),"role", role.getRoleId(),"group", group.getGroupId(), "privileges", privilegeString(role.getPrivileges())));
-                                        });
-                                });
+                                .forEach(group -> users.stream()
+                                    .filter(user -> user.getGroupsList().contains(group.getGroupId()))
+                                    .forEach(user -> catalogAccess.add(Map.of("path", path,"user", user.getUserId(),"role", role.getRoleId(),"group", group.getGroupId(), "privileges", privilegeString(role.getPrivileges())))));
                             users.stream()
                                 .filter(user -> user.getRolesList().contains(role.getRoleId()))
-                                .forEach(user -> {
-                                    catalogAccess.add(Map.of("path", path,"user", user.getUserId(),"role", role.getRoleId(),"group", "", "privileges", privilegeString(role.getPrivileges())));
-                                });
+                                .forEach(user -> catalogAccess.add(Map.of("path", path,"user", user.getUserId(),"role", role.getRoleId(),"group", "", "privileges", privilegeString(role.getPrivileges()))));
                         });
                     span.log("return catalogAccess");
                     future.complete(catalogAccess);
@@ -190,13 +184,12 @@ public class AccessService {
 
     private String privilegeString(PrivilegeSet privileges) {
         StringBuilder privilegesString = new StringBuilder();
-        List<Privilege> privs = new ArrayList<>();
-        privileges.getIncludesList().forEach(p -> privs.add(p));
+        List<Privilege> privs = new ArrayList<>(privileges.getIncludesList());
         if (privs.size() == 0) {
             privs.addAll(Arrays.asList(Privilege.values()));
         }
         privs.remove(Privilege.UNRECOGNIZED);
-        privileges.getExcludesList().forEach(p -> privs.remove(p));
+        privileges.getExcludesList().forEach(privs::remove);
         privs.forEach(p -> privilegesString.append(p.name()).append(" "));
         return privilegesString.toString();
     }
