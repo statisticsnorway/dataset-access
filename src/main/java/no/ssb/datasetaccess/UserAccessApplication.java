@@ -29,6 +29,8 @@ import no.ssb.datasetaccess.group.GroupRepository;
 import no.ssb.datasetaccess.health.Health;
 import no.ssb.datasetaccess.health.HealthAwarePgPool;
 import no.ssb.datasetaccess.health.ReadinessSample;
+import no.ssb.datasetaccess.maintenance.MaintenanceHttpService;
+import no.ssb.datasetaccess.maintenance.MaintenanceRepository;
 import no.ssb.datasetaccess.role.RoleHttpService;
 import no.ssb.datasetaccess.role.RoleRepository;
 import no.ssb.datasetaccess.user.UserHttpService;
@@ -92,10 +94,12 @@ public class UserAccessApplication extends DefaultHelidonApplication {
         UserRepository userRepository = new UserRepository(pgPool);
         GroupRepository groupRepository = new GroupRepository(pgPool);
         RoleRepository roleRepository = new RoleRepository(pgPool);
+        MaintenanceRepository maintenanceRepository = new MaintenanceRepository(roleRepository, groupRepository, userRepository);
         put(PgPool.class, pgPool);
         put(UserRepository.class, userRepository);
         put(GroupRepository.class, groupRepository);
         put(RoleRepository.class, roleRepository);
+        put(MaintenanceRepository.class, maintenanceRepository);
 
         // services
         AccessService accessService = new AccessService(userRepository, groupRepository, roleRepository);
@@ -136,6 +140,7 @@ public class UserAccessApplication extends DefaultHelidonApplication {
                 .register("/role", new RoleHttpService(roleRepository))
                 .register("/user", new UserHttpService(userRepository))
                 .register("/group", new GroupHttpService(groupRepository))
+                .register("/maintenance", new MaintenanceHttpService(maintenanceRepository))
                 .register("/access", new AccessHttpService(accessService))
                 .register("/rpc", new HelidonGrpcWebTranscoding(
                         () -> ManagedChannelBuilder
