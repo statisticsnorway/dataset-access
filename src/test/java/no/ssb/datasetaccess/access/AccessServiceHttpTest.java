@@ -197,7 +197,7 @@ class AccessServiceHttpTest {
 
     @Test
     void thatCatalogAccessWorks() {
-        client.get("/access/catalog/ns.test/internal/raw").expect200Ok();
+        client.get("/access/catalog?path=/ns/test/internal/raw").expect200Ok();
     }
 
     @Test
@@ -205,7 +205,7 @@ class AccessServiceHttpTest {
         createUser("john_can_update", null, List.of("group1"));
         createRole("updater", List.of(Privilege.UPDATE), List.of("/ns/test"), Valuation.INTERNAL, List.of(DatasetState.RAW, DatasetState.INPUT));
         createGroup("group1", "This is the first group", List.of("updater"));
-        String respons = client.get("/access/catalog/ns.test/internal/raw").expect200Ok().body();
+        String respons = client.get("/access/catalog?path=/ns/test&valuation=internal&state=raw").expect200Ok().body();
         assertTrue(respons.startsWith("{\"catalogAccess\": [{"));
         assertTrue(respons.contains("\"user\":\"john_can_update\""));
         assertTrue(respons.contains("\"privileges\":\"UPDATE \""));
@@ -220,7 +220,7 @@ class AccessServiceHttpTest {
         createUser("john_can_update_internal", null, List.of("group1"));
         createRole("updater", List.of(Privilege.UPDATE), List.of("/ns/test"), Valuation.INTERNAL, List.of(DatasetState.RAW, DatasetState.INPUT));
         createGroup("group1", "This is the first group", List.of("updater"));
-        String processedRespons = client.get("/access/catalog/ns.test/internal/processed").expect200Ok().body();
+        String processedRespons = client.get("/access/catalog?path=/ns/test&valuation=internal&state=processed").expect200Ok().body();
         assertEquals("{\"catalogAccess\": []}", processedRespons);
     }
 
@@ -235,11 +235,11 @@ class AccessServiceHttpTest {
         createRole("readinternal", List.of(Privilege.READ), List.of("/ns/test"), Valuation.INTERNAL, List.of(DatasetState.RAW, DatasetState.INPUT));
         createGroup("group2", "This is the second group", List.of("readinternal"));
 
-        String shieldedresponse = client.get("/access/catalog/ns.test/shielded/raw").expect200Ok().body();
+        String shieldedresponse = client.get("/access/catalog?path=/ns/test&valuation=shielded&state=raw").expect200Ok().body();
         JSONArray shieldedaccesses = new JSONObject(shieldedresponse).getJSONArray("catalogAccess");
         assertEquals(2, shieldedaccesses.length());
 
-        String internalresponse = client.get("/access/catalog/ns.test/internal/raw").expect200Ok().body();
+        String internalresponse = client.get("/access/catalog?path=/ns/test&valuation=internal&state=raw").expect200Ok().body();
         JSONArray internalaccesses = new JSONObject(internalresponse).getJSONArray("catalogAccess");
         assertEquals(3, internalaccesses.length());
     }
@@ -251,9 +251,9 @@ class AccessServiceHttpTest {
                 List.of("/ns/test"), List.of("/ns/test/exclude"), Valuation.SHIELDED,
                 List.of(DatasetState.RAW, DatasetState.INPUT), null);
         createGroup("group1", "This is the first group", List.of("updater"));
-        String okrespons = client.get("/access/catalog/ns.test.somedir/internal/input").expect200Ok().body();
+        String okrespons = client.get("/access/catalog?path=/ns/test/somedir&valuation=internal&state=input").expect200Ok().body();
         assertTrue(okrespons.contains("\"user\":\"john_can_update_shielded\""));
-        String emptyrespons = client.get("/access/catalog/ns.test.exclude.somedir/internal/input").expect200Ok().body();
+        String emptyrespons = client.get("/access/catalog?path=/ns/test/exclude/somedir&valuation=internal&state=input").expect200Ok().body();
         assertEquals("{\"catalogAccess\": []}", emptyrespons);
 
     }
@@ -265,9 +265,9 @@ class AccessServiceHttpTest {
                 List.of("/ns/test"), List.of("/ns/test/exclude"), Valuation.SHIELDED,
                 List.of(DatasetState.RAW, DatasetState.INPUT), null);
         createGroup("group1", "This is the first group", List.of("updater"));
-        String okrespons = client.get("/access/catalog/ns.test.somedir/internal/input").expect200Ok().body();
+        String okrespons = client.get("/access/catalog?path=/ns/test/somedir&valuation=internal&state=input").expect200Ok().body();
         assertTrue(okrespons.contains("\"user\":\"john_can_update_shielded\""));
-        String emptyrespons = client.get("/access/catalog/ns.test.exclude.somedir/internal/input").expect200Ok().body();
+        String emptyrespons = client.get("/access/catalog?path=/ns/test/exclude/somedir&valuation=internal&state=input").expect200Ok().body();
         assertEquals("{\"catalogAccess\": []}", emptyrespons);
     }
 
@@ -277,7 +277,7 @@ class AccessServiceHttpTest {
         createRole("updater", null, List.of(Privilege.DELETE),
                 List.of("/ns/test"), List.of("/ns/test/exclude"), Valuation.SHIELDED,
                 List.of(DatasetState.RAW, DatasetState.INPUT), null);
-        String respons = client.get("/access/catalog/ns.test.somedir/internal/input").expect200Ok().body();
+        String respons = client.get("/access/catalog?path=/ns/test/somedir&valuation=internal&state=input").expect200Ok().body();
         assertTrue(respons.contains("\"user\":\"john_can_update_shielded\""));
     }
 }

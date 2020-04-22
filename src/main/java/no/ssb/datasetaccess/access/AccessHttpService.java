@@ -41,8 +41,8 @@ public class AccessHttpService implements Service {
 
     @Override
     public void update(Routing.Rules rules) {
+        rules.get("/catalog", this::catalogAccess);
         rules.get("/{userId}", this::httpHasAccess);
-        rules.get("/catalog/{path}/{valuation}/{state}", this::catalogAccess);
     }
 
     private void httpHasAccess(ServerRequest req, ServerResponse res) {
@@ -103,9 +103,10 @@ public class AccessHttpService implements Service {
         TracerAndSpan tracerAndSpan = Tracing.spanFromHttp(req, "catalogAccess");
         Span span = tracerAndSpan.span();
         try {
-            String path = req.path().param("path").replace(".", "/");
-            String valuation = req.path().param("valuation");
-            String state = req.path().param("state");
+
+            String path = req.queryParams().first("path").orElseThrow();
+            String valuation = req.queryParams().first("valuation").orElseThrow();
+            String state = req.queryParams().first("state").orElseThrow();
             if (!path.startsWith("/")) {
                 path = "/" + path;
             }
