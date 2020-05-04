@@ -78,7 +78,7 @@ public class AccessService {
     }
 
 
-    private boolean matchRole(Role role, Privilege privilege, String path, Valuation valuation, DatasetState state) {
+    static boolean matchRole(Role role, Privilege privilege, String path, Valuation valuation, DatasetState state) {
         if (!matchPrivileges(ofNullable(role.getPrivileges()), privilege::equals)) {
             return false;
         }
@@ -97,7 +97,7 @@ public class AccessService {
         return true; // all criteria matched
     }
 
-    private boolean matchPrivileges(Optional<PrivilegeSet> criterionNode, Function<Privilege, Boolean> matcher) {
+    static boolean matchPrivileges(Optional<PrivilegeSet> criterionNode, Function<Privilege, Boolean> matcher) {
         List<Privilege> excludes = criterionNode.map(PrivilegeSet::getExcludesList).orElse(Collections.emptyList());
         for (Privilege exclude : excludes) {
             if (matcher.apply(exclude)) {
@@ -116,7 +116,7 @@ public class AccessService {
         return false; // non-empty include set, but no matches
     }
 
-    private boolean matchPaths(Optional<PathSet> criterionNode, Function<String, Boolean> matcher) {
+    static boolean matchPaths(Optional<PathSet> criterionNode, Function<String, Boolean> matcher) {
         List<String> excludes = criterionNode.map(PathSet::getExcludesList).orElse(LazyStringArrayList.EMPTY);
         for (String exclude : excludes) {
             if (matcher.apply(exclude)) {
@@ -135,7 +135,7 @@ public class AccessService {
         return false; // non-empty include set, but no matches
     }
 
-    private boolean matchStates(Optional<DatasetStateSet> criterionNode, Function<DatasetState, Boolean> matcher) {
+    static boolean matchStates(Optional<DatasetStateSet> criterionNode, Function<DatasetState, Boolean> matcher) {
         List<DatasetState> excludes = criterionNode.map(DatasetStateSet::getExcludesList).orElse(Collections.emptyList());
         for (DatasetState exclude : excludes) {
             if (matcher.apply(exclude)) {
