@@ -86,7 +86,7 @@ public class AccessService {
     }
 
 
-    private boolean matchRole(Role role, Privilege privilege, String path, Valuation valuation, DatasetState state) {
+    static boolean matchRole(Role role, Privilege privilege, String path, Valuation valuation, DatasetState state) {
         if (privilege != null && !matchPrivileges(ofNullable(role.getPrivileges()), privilege::equals)) {
             return false;
         }
