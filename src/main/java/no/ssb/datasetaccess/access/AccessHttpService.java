@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.TimeUnit;
 
 import static no.ssb.helidon.application.Tracing.logError;
+import static no.ssb.helidon.application.Tracing.traceOutputMessage;
 
 public class AccessHttpService implements Service {
 
@@ -28,7 +29,8 @@ public class AccessHttpService implements Service {
 
     private final AccessService accessService;
 
-    private final Timer accessTimer = RegistryFactory.getInstance().getRegistry(MetricRegistry.Type.APPLICATION).timer("accessTimer");
+    private final Timer accessUserTimer = RegistryFactory.getInstance().getRegistry(MetricRegistry.Type.APPLICATION).timer("accessUserTimer");
+    private final Timer accessListMatchingTimer = RegistryFactory.getInstance().getRegistry(MetricRegistry.Type.APPLICATION).timer("accessListMatchingTimer");
     private final Counter accessGrantedCount = RegistryFactory.getInstance().getRegistry(MetricRegistry.Type.APPLICATION).counter("accessGrantedCount");
     private final Counter accessDeniedCount = RegistryFactory.getInstance().getRegistry(MetricRegistry.Type.APPLICATION).counter("accessDeniedCount");
 
@@ -38,6 +40,7 @@ public class AccessHttpService implements Service {
 
     @Override
     public void update(Routing.Rules rules) {
+        rules.get("/", this::listMatchingUsersRolesAndGroupsByPath);
         rules.get("/{userId}", this::httpHasAccess);
     }
 
@@ -49,7 +52,6 @@ public class AccessHttpService implements Service {
             span.setTag("userId", userId);
             Privilege privilege = Privilege.valueOf(req.queryParams().first("privilege").orElseThrow());
             span.setTag("privilege", privilege.name());
-//            LOG.info("param privilege: {}", privilege != null ? privilege.name() : "null");
             String path = req.queryParams().first("path").orElseThrow();
             if (!path.startsWith("/")) {
                 path = "/" + path;
@@ -59,7 +61,7 @@ public class AccessHttpService implements Service {
             span.setTag("valuation", valuation.name());
             DatasetState state = DatasetState.valueOf(req.queryParams().first("state").orElseThrow());
             span.setTag("state", state.name());
-            Timer.Context timerContext = accessTimer.time();
+            Timer.Context timerContext = accessUserTimer.time();
             accessService.hasAccess(span, userId, privilege, path, valuation, state)
                     .orTimeout(10, TimeUnit.SECONDS)
                     .thenAccept(access -> {
@@ -95,4 +97,55 @@ public class AccessHttpService implements Service {
             }
         }
     }
+
+    private void listMatchingUsersRolesAndGroupsByPath(ServerRequest req, ServerResponse res) {
+        TracerAndSpan tracerAndSpan = Tracing.spanFromHttp(req, "catalogAccess");
+        Span span = tracerAndSpan.span();
+        try {
+
+            String path = req.queryParams().first("path").orElseThrow();
+            String valuation = req.queryParams().first("valuation").orElseThrow();
+            String state = req.queryParams().first("state").orElseThrow();
+            if (!path.startsWith("/")) {
+                path = "/" + path;
+            }
+            span.setTag("path", path);
+            span.setTag("valuation", valuation);
+            span.setTag("state", state);
+            Timer.Context timerContext = accessListMatchingTimer.time();
+            accessService.listMatchingUsersRolesAndGroupsByPath(span, path, valuation, state)
+                    .orTimeout(10, TimeUnit.SECONDS)
+                    .thenAccept(catalogAccessList -> {
+                        Tracing.restoreTracingContext(tracerAndSpan);
+                        if (catalogAccessList == null) {
+                            res.status(Http.Status.NOT_FOUND_404).send();
+                        } else {
+                            String json = catalogAccessList.toString();
+                            res.send(json);
+                            traceOutputMessage(span, json);
+                        }
+                    }).thenRun(span::finish)
+                    .thenRun(timerContext::stop)
+                    .exceptionally(t -> {
+                        try {
+                            Tracing.restoreTracingContext(req.tracer(), span);
+                            logError(span, t);
+                            res.status(Http.Status.INTERNAL_SERVER_ERROR_500).send(t.getMessage());
+                            return null;
+                        } finally {
+                            timerContext.stop();
+                            span.finish();
+                        }
+                    });
+        } catch (RuntimeException | Error e) {
+            try {
+                logError(span, e);
+                LOG.error("unexpected error", e);
+                throw e;
+            } finally {
+                span.finish();
+            }
+        }
+    }
+
 }
