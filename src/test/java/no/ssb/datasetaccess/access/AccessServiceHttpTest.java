@@ -1,15 +1,25 @@
 package no.ssb.datasetaccess.access;
 
 
-import no.ssb.dapla.auth.dataset.protobuf.*;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import no.ssb.dapla.auth.dataset.protobuf.DatasetState;
+import no.ssb.dapla.auth.dataset.protobuf.DatasetStateSet;
+import no.ssb.dapla.auth.dataset.protobuf.Group;
+import no.ssb.dapla.auth.dataset.protobuf.PathSet;
+import no.ssb.dapla.auth.dataset.protobuf.Privilege;
+import no.ssb.dapla.auth.dataset.protobuf.PrivilegeSet;
+import no.ssb.dapla.auth.dataset.protobuf.Role;
+import no.ssb.dapla.auth.dataset.protobuf.User;
+import no.ssb.dapla.auth.dataset.protobuf.Valuation;
 import no.ssb.datasetaccess.UserAccessApplication;
 import no.ssb.datasetaccess.group.GroupRepository;
 import no.ssb.datasetaccess.role.RoleRepository;
 import no.ssb.datasetaccess.user.UserRepository;
 import no.ssb.testing.helidon.IntegrationTestExtension;
 import no.ssb.testing.helidon.TestClient;
-import org.json.JSONArray;
-import org.json.JSONObject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -60,6 +70,7 @@ class AccessServiceHttpTest {
             throw new RuntimeException(e);
         }
     }
+
     void createRole(String roleId, Iterable<Privilege> privilegeIncludes, Iterable<String> pathIncludes, Valuation maxValuation, Iterable<DatasetState> stateIncludes) {
         createRole(roleId, privilegeIncludes, null, pathIncludes, null, maxValuation, stateIncludes, null);
     }
@@ -197,22 +208,24 @@ class AccessServiceHttpTest {
 
     @Test
     void thatCatalogAccessWorks() {
-        client.get("/access/catalog?path=/ns/test/internal/raw").expect200Ok();
+        client.get("/access?path=/ns/test&valuation=internal&state=raw").expect200Ok();
     }
 
     @Test
-    void thatCatalogAccessReturnsResult() {
+    void thatCatalogAccessReturnsResult() throws JsonProcessingException {
         createUser("john_can_update", null, List.of("group1"));
         createRole("updater", List.of(Privilege.UPDATE), List.of("/ns/test"), Valuation.INTERNAL, List.of(DatasetState.RAW, DatasetState.INPUT));
         createGroup("group1", "This is the first group", List.of("updater"));
-        String respons = client.get("/access/catalog?path=/ns/test&valuation=internal&state=raw").expect200Ok().body();
-        assertTrue(respons.startsWith("{\"catalogAccess\": [{"));
-        assertTrue(respons.contains("\"user\":\"john_can_update\""));
-        assertTrue(respons.contains("\"privileges\":\"UPDATE \""));
-        assertTrue(respons.contains("\"role\":\"updater\""));
-        assertTrue(respons.contains("\"group\":\"group1\""));
-        assertTrue(respons.contains("\"path\":\"/ns/test\""));
-        assertTrue(respons.endsWith("\"}]}"));
+        String respons = client.get("/access?path=/ns/test&valuation=internal&state=raw").expect200Ok().body();
+        ObjectMapper mapper = new ObjectMapper();
+        ArrayNode expected = mapper.createArrayNode();
+        expected.addObject()
+                .put("user", "john_can_update")
+                .put("role", "updater")
+                .put("group", "group1")
+                .putArray("privileges").add("UPDATE");
+        JsonNode actual = mapper.readTree(respons);
+        assertEquals(expected, actual);
     }
 
     @Test
@@ -220,12 +233,12 @@ class AccessServiceHttpTest {
         createUser("john_can_update_internal", null, List.of("group1"));
         createRole("updater", List.of(Privilege.UPDATE), List.of("/ns/test"), Valuation.INTERNAL, List.of(DatasetState.RAW, DatasetState.INPUT));
         createGroup("group1", "This is the first group", List.of("updater"));
-        String processedRespons = client.get("/access/catalog?path=/ns/test&valuation=internal&state=processed").expect200Ok().body();
-        assertEquals("{\"catalogAccess\": []}", processedRespons);
+        String processedRespons = client.get("/access?path=/ns/test&valuation=internal&state=processed").expect200Ok().body();
+        assertEquals("[]", processedRespons);
     }
 
     @Test
-    void thatCatalogAccessReturnsMultipleRowsResult() {
+    void thatCatalogAccessReturnsMultipleRowsResult() throws JsonProcessingException {
         createUser("john_can_update_shielded", null, List.of("group1"));
         createUser("june_can_update_shielded", null, List.of("group1"));
         createRole("updater", List.of(Privilege.UPDATE), List.of("/ns/test"), Valuation.SHIELDED, List.of(DatasetState.RAW, DatasetState.INPUT));
@@ -235,13 +248,17 @@ class AccessServiceHttpTest {
         createRole("readinternal", List.of(Privilege.READ), List.of("/ns/test"), Valuation.INTERNAL, List.of(DatasetState.RAW, DatasetState.INPUT));
         createGroup("group2", "This is the second group", List.of("readinternal"));
 
-        String shieldedresponse = client.get("/access/catalog?path=/ns/test&valuation=shielded&state=raw").expect200Ok().body();
-        JSONArray shieldedaccesses = new JSONObject(shieldedresponse).getJSONArray("catalogAccess");
-        assertEquals(2, shieldedaccesses.length());
+        ObjectMapper mapper = new ObjectMapper();
 
-        String internalresponse = client.get("/access/catalog?path=/ns/test&valuation=internal&state=raw").expect200Ok().body();
-        JSONArray internalaccesses = new JSONObject(internalresponse).getJSONArray("catalogAccess");
-        assertEquals(3, internalaccesses.length());
+        String shieldedresponseJson = client.get("/access?path=/ns/test&valuation=shielded&state=raw").expect200Ok().body();
+        JsonNode shieldedresponse = mapper.readTree(shieldedresponseJson);
+        assertTrue(shieldedresponse.isArray());
+        assertEquals(2, shieldedresponse.size());
+
+        String internalresponseJson = client.get("/access?path=/ns/test&valuation=internal&state=raw").expect200Ok().body();
+        JsonNode internalaccesses = mapper.readTree(internalresponseJson);
+        assertTrue(internalaccesses.isArray());
+        assertEquals(3, internalaccesses.size());
     }
 
     @Test
@@ -251,10 +268,10 @@ class AccessServiceHttpTest {
                 List.of("/ns/test"), List.of("/ns/test/exclude"), Valuation.SHIELDED,
                 List.of(DatasetState.RAW, DatasetState.INPUT), null);
         createGroup("group1", "This is the first group", List.of("updater"));
-        String okrespons = client.get("/access/catalog?path=/ns/test/somedir&valuation=internal&state=input").expect200Ok().body();
+        String okrespons = client.get("/access?path=/ns/test/somedir&valuation=internal&state=input").expect200Ok().body();
         assertTrue(okrespons.contains("\"user\":\"john_can_update_shielded\""));
-        String emptyrespons = client.get("/access/catalog?path=/ns/test/exclude/somedir&valuation=internal&state=input").expect200Ok().body();
-        assertEquals("{\"catalogAccess\": []}", emptyrespons);
+        String emptyrespons = client.get("/access?path=/ns/test/exclude/somedir&valuation=internal&state=input").expect200Ok().body();
+        assertEquals("[]", emptyrespons);
 
     }
 
@@ -265,10 +282,10 @@ class AccessServiceHttpTest {
                 List.of("/ns/test"), List.of("/ns/test/exclude"), Valuation.SHIELDED,
                 List.of(DatasetState.RAW, DatasetState.INPUT), null);
         createGroup("group1", "This is the first group", List.of("updater"));
-        String okrespons = client.get("/access/catalog?path=/ns/test/somedir&valuation=internal&state=input").expect200Ok().body();
+        String okrespons = client.get("/access?path=/ns/test/somedir&valuation=internal&state=input").expect200Ok().body();
         assertTrue(okrespons.contains("\"user\":\"john_can_update_shielded\""));
-        String emptyrespons = client.get("/access/catalog?path=/ns/test/exclude/somedir&valuation=internal&state=input").expect200Ok().body();
-        assertEquals("{\"catalogAccess\": []}", emptyrespons);
+        String emptyrespons = client.get("/access?path=/ns/test/exclude/somedir&valuation=internal&state=input").expect200Ok().body();
+        assertEquals("[]", emptyrespons);
     }
 
     @Test
@@ -277,7 +294,7 @@ class AccessServiceHttpTest {
         createRole("updater", null, List.of(Privilege.DELETE),
                 List.of("/ns/test"), List.of("/ns/test/exclude"), Valuation.SHIELDED,
                 List.of(DatasetState.RAW, DatasetState.INPUT), null);
-        String respons = client.get("/access/catalog?path=/ns/test/somedir&valuation=internal&state=input").expect200Ok().body();
+        String respons = client.get("/access?path=/ns/test/somedir&valuation=internal&state=input").expect200Ok().body();
         assertTrue(respons.contains("\"user\":\"john_can_update_shielded\""));
     }
 }

@@ -1,7 +1,5 @@
 package no.ssb.datasetaccess.access;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.helidon.common.http.Http;
 import io.helidon.metrics.RegistryFactory;
 import io.helidon.webserver.Routing;
@@ -31,7 +29,8 @@ public class AccessHttpService implements Service {
 
     private final AccessService accessService;
 
-    private final Timer accessTimer = RegistryFactory.getInstance().getRegistry(MetricRegistry.Type.APPLICATION).timer("accessTimer");
+    private final Timer accessUserTimer = RegistryFactory.getInstance().getRegistry(MetricRegistry.Type.APPLICATION).timer("accessUserTimer");
+    private final Timer accessListMatchingTimer = RegistryFactory.getInstance().getRegistry(MetricRegistry.Type.APPLICATION).timer("accessListMatchingTimer");
     private final Counter accessGrantedCount = RegistryFactory.getInstance().getRegistry(MetricRegistry.Type.APPLICATION).counter("accessGrantedCount");
     private final Counter accessDeniedCount = RegistryFactory.getInstance().getRegistry(MetricRegistry.Type.APPLICATION).counter("accessDeniedCount");
 
@@ -41,7 +40,7 @@ public class AccessHttpService implements Service {
 
     @Override
     public void update(Routing.Rules rules) {
-        rules.get("/catalog", this::catalogAccess);
+        rules.get("/", this::listMatchingUsersRolesAndGroupsByPath);
         rules.get("/{userId}", this::httpHasAccess);
     }
 
@@ -62,7 +61,7 @@ public class AccessHttpService implements Service {
             span.setTag("valuation", valuation.name());
             DatasetState state = DatasetState.valueOf(req.queryParams().first("state").orElseThrow());
             span.setTag("state", state.name());
-            Timer.Context timerContext = accessTimer.time();
+            Timer.Context timerContext = accessUserTimer.time();
             accessService.hasAccess(span, userId, privilege, path, valuation, state)
                     .orTimeout(10, TimeUnit.SECONDS)
                     .thenAccept(access -> {
@@ -99,7 +98,7 @@ public class AccessHttpService implements Service {
         }
     }
 
-    private void catalogAccess(ServerRequest req, ServerResponse res) {
+    private void listMatchingUsersRolesAndGroupsByPath(ServerRequest req, ServerResponse res) {
         TracerAndSpan tracerAndSpan = Tracing.spanFromHttp(req, "catalogAccess");
         Span span = tracerAndSpan.span();
         try {
@@ -113,32 +112,20 @@ public class AccessHttpService implements Service {
             span.setTag("path", path);
             span.setTag("valuation", valuation);
             span.setTag("state", state);
-            Timer.Context timerContext = accessTimer.time();
-            accessService.catalogAccess(span, path, valuation, state)
+            Timer.Context timerContext = accessListMatchingTimer.time();
+            accessService.listMatchingUsersRolesAndGroupsByPath(span, path, valuation, state)
                     .orTimeout(10, TimeUnit.SECONDS)
                     .thenAccept(catalogAccessList -> {
                         Tracing.restoreTracingContext(tracerAndSpan);
                         if (catalogAccessList == null) {
                             res.status(Http.Status.NOT_FOUND_404).send();
                         } else {
-                            StringBuffer jsonCatalogAccess = new StringBuffer("{\"catalogAccess\": [");
-                            ObjectMapper objectMapper = new ObjectMapper();
-                            for (Object catalogAccess : catalogAccessList) {
-                                try {
-                                    jsonCatalogAccess.append(objectMapper.writeValueAsString(catalogAccess)).append(',');
-                                } catch (JsonProcessingException e) {
-                                    //TODO: Handle json-exception
-                                    e.printStackTrace();
-                                }
-                            }
-                            if (jsonCatalogAccess.indexOf(",") > 0) {
-                                jsonCatalogAccess.deleteCharAt(jsonCatalogAccess.length()-1);
-                            }
-                            jsonCatalogAccess.append("]}");
-                            res.send(jsonCatalogAccess);
-                            traceOutputMessage(span, jsonCatalogAccess.toString());
+                            String json = catalogAccessList.toString();
+                            res.send(json);
+                            traceOutputMessage(span, json);
                         }
                     }).thenRun(span::finish)
+                    .thenRun(timerContext::stop)
                     .exceptionally(t -> {
                         try {
                             Tracing.restoreTracingContext(req.tracer(), span);
@@ -146,6 +133,7 @@ public class AccessHttpService implements Service {
                             res.status(Http.Status.INTERNAL_SERVER_ERROR_500).send(t.getMessage());
                             return null;
                         } finally {
+                            timerContext.stop();
                             span.finish();
                         }
                     });
