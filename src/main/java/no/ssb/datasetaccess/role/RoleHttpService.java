@@ -1,6 +1,10 @@
 package no.ssb.datasetaccess.role;
 
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.helidon.common.http.Http;
 import io.helidon.webserver.Handler;
 import io.helidon.webserver.Routing;
@@ -31,6 +35,8 @@ public class RoleHttpService implements Service {
     public RoleHttpService(RoleRepository repository) {
         this.repository = repository;
     }
+
+    final ObjectMapper mapper = new ObjectMapper();
 
     @Override
     public void update(Routing.Rules rules) {
@@ -89,16 +95,18 @@ public class RoleHttpService implements Service {
                         if (roles == null) {
                             res.status(Http.Status.NOT_FOUND_404).send();
                         } else {
-                            StringBuffer jsonRoles = new StringBuffer("{\"roles\": [");
+                            ObjectNode returnObject = mapper.createObjectNode();
+                            ArrayNode roleArray = returnObject.putArray("roles");
                             for (Role role : roles) {
-                                jsonRoles.append(ProtobufJsonUtils.toString(role)).append(',');
+                                try {
+                                    roleArray.add(mapper.readTree(ProtobufJsonUtils.toString(role)));
+                                } catch (JsonProcessingException e) {
+                                    logError(span, e);
+                                    LOG.error("unexpected error reading role-tree", e);
+                                }
                             }
-                            if (jsonRoles.indexOf(",") > 0) {
-                                jsonRoles.deleteCharAt(jsonRoles.length()-1);
-                            }
-                            jsonRoles.append("]}");
-                            res.send(jsonRoles);
-                            traceOutputMessage(span, jsonRoles.toString());
+                            res.send(returnObject.toString());
+                            traceOutputMessage(span, returnObject.asText());
                         }
                     }).thenRun(span::finish)
                     .exceptionally(t -> {

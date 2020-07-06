@@ -6,9 +6,16 @@ import no.ssb.helidon.media.protobuf.ProtobufJsonUtils;
 import no.ssb.testing.helidon.IntegrationTestExtension;
 import no.ssb.testing.helidon.ResponseHelper;
 import no.ssb.testing.helidon.TestClient;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.skyscreamer.jsonassert.JSONAssert;
+import org.skyscreamer.jsonassert.JSONCompareMode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import java.util.List;
@@ -16,10 +23,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 @ExtendWith(IntegrationTestExtension.class)
 class UserServiceHttpTest {
+    private static final Logger LOG = LoggerFactory.getLogger(UserServiceHttpTest.class);
 
     @Inject
     UserAccessApplication application;
@@ -54,15 +63,23 @@ class UserServiceHttpTest {
     }
 
     @Test
-    void thatGetUserListWorks() {
-        String userJson = client.get("/user").expect200Ok().body();
-        assertEquals("{\"users\": []}", userJson);
+    void thatGetUserListWorks() throws JSONException {
+        String getResult = client.get("/user").expect200Ok().body();
+
+        JSONObject expected = new JSONObject();
+        JSONArray users = new JSONArray();
+        expected.put("users", users);
+        JSONAssert.assertEquals(expected, new JSONObject(getResult), JSONCompareMode.LENIENT);
 
         User user1 = createUser("john", List.of("reader"));
         User user2 = createUser("mary", List.of("writer"));
-        userJson =(client.get("/user").expect200Ok().body());
-        assertTrue(userJson.contains("john"));
-        assertTrue(userJson.contains(ProtobufJsonUtils.toString(user2)));
+        getResult =(client.get("/user").expect200Ok().body());
+
+        users.put(new JSONObject(ProtobufJsonUtils.toString(user1)));
+        users.put(new JSONObject(ProtobufJsonUtils.toString(user2)));
+
+        JSONAssert.assertEquals(expected, new JSONObject(getResult), JSONCompareMode.LENIENT);
+
     }
 
     @Test

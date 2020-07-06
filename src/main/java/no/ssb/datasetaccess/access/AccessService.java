@@ -167,7 +167,7 @@ public class AccessService {
         ArrayNode result = objectMapper.createArrayNode();
         span.log("userRepository.getUserList()");
         userRepository.getUserList(null).thenAccept(users -> {
-            span.log("calling roleRepostory.getRoleList()");
+            span.log("calling roleRepository.getRoleList()");
             roleRepository.getRoleList(null).thenAccept(roles -> {
                 span.log("calling groupRepository.getGroupList()");
                 groupRepository.getGroupList().thenAccept(groups -> {
@@ -202,8 +202,8 @@ public class AccessService {
                 .put("role", role.getRoleId())
                 .put("group", groupId);
         ArrayNode privileges = match.putArray("privileges");
-        for (Privilege priv : resolvePrivileges(role.getPrivileges())) {
-            privileges.add(priv.name());
+        for (Privilege privilege : resolvePrivileges(role.getPrivileges())) {
+            privileges.add(privilege.name());
         }
     }
 

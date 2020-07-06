@@ -1,6 +1,5 @@
 package no.ssb.datasetaccess.role;
 
-import com.google.gson.Gson;
 import no.ssb.dapla.auth.dataset.protobuf.DatasetState;
 import no.ssb.dapla.auth.dataset.protobuf.DatasetStateSet;
 import no.ssb.dapla.auth.dataset.protobuf.PathSet;
@@ -13,20 +12,25 @@ import no.ssb.helidon.media.protobuf.ProtobufJsonUtils;
 import no.ssb.testing.helidon.IntegrationTestExtension;
 import no.ssb.testing.helidon.ResponseHelper;
 import no.ssb.testing.helidon.TestClient;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.skyscreamer.jsonassert.JSONAssert;
+import org.skyscreamer.jsonassert.JSONCompareMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 @ExtendWith(IntegrationTestExtension.class)
 class RoleServiceHttpTest {
@@ -83,9 +87,13 @@ class RoleServiceHttpTest {
     }
 
     @Test
-    void thatGetAllRoleWorks() {
-        String roleJson = client.get("/role").expect200Ok().body();
-        assertEquals("{\"roles\": []}", roleJson);
+    void thatGetAllRoleWorks() throws JSONException {
+        String getResult = client.get("/role").expect200Ok().body();
+
+        JSONObject expected = new JSONObject();
+        JSONArray roles = new JSONArray();
+        expected.put("roles", roles);
+        JSONAssert.assertEquals(expected, new JSONObject(getResult), JSONCompareMode.LENIENT);
 
         Role role1 = createRole("writer1", List.of(Privilege.CREATE, Privilege.UPDATE),
                 List.of("/ns/test"), Valuation.INTERNAL, List.of(DatasetState.RAW, DatasetState.INPUT));
@@ -93,11 +101,16 @@ class RoleServiceHttpTest {
                 List.of("/ns/test"), Valuation.INTERNAL, List.of(DatasetState.PROCESSED));
         Role role3 = createRole("reader1", List.of(Privilege.CREATE, Privilege.UPDATE),
                 List.of("/ns/test2"), Valuation.INTERNAL, List.of(DatasetState.RAW, DatasetState.INPUT));
-        roleJson = client.get("/role").expect200Ok().body();
-        assertNotNull(roleJson);
-        assertTrue(roleJson.contains("writer1"));
-        assertTrue(roleJson.contains(ProtobufJsonUtils.toString(role2)));
-        assertTrue(roleJson.contains(ProtobufJsonUtils.toString(role3)));
+        getResult = client.get("/role").expect200Ok().body();
+
+
+        roles.put(new JSONObject(ProtobufJsonUtils.toString(role1)));
+        roles.put(new JSONObject(ProtobufJsonUtils.toString(role2)));
+        roles.put(new JSONObject(ProtobufJsonUtils.toString(role3)));
+
+        JSONAssert.assertEquals(expected, new JSONObject(getResult), JSONCompareMode.LENIENT);
+
+
     }
 
     @Test

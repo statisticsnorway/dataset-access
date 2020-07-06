@@ -1,5 +1,9 @@
 package no.ssb.datasetaccess.user;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.helidon.common.http.Http;
 import io.helidon.webserver.Handler;
 import io.helidon.webserver.Routing;
@@ -17,7 +21,6 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.TimeUnit;
 
 import static no.ssb.helidon.application.Tracing.*;
-import static no.ssb.helidon.application.Tracing.logError;
 
 public class UserHttpService implements Service {
 
@@ -28,6 +31,8 @@ public class UserHttpService implements Service {
     public UserHttpService(UserRepository repository) {
         this.repository = repository;
     }
+
+    final ObjectMapper mapper = new ObjectMapper();
 
     @Override
     public void update(Routing.Rules rules) {
@@ -83,16 +88,18 @@ public class UserHttpService implements Service {
                         if (users == null) {
                             res.status(Http.Status.NOT_FOUND_404).send();
                         } else {
-                            StringBuffer jsonUsers = new StringBuffer("{\"users\": [");
+                            ObjectNode returnObject = mapper.createObjectNode();
+                            ArrayNode userArray = returnObject.putArray("users");
                             for (User user : users) {
-                                jsonUsers.append(ProtobufJsonUtils.toString(user)).append(',');
+                                try {
+                                    userArray.add(mapper.readTree(ProtobufJsonUtils.toString(user)));
+                                } catch (JsonProcessingException e) {
+                                    logError(span, e);
+                                    LOG.error("unexpected error reading user-tree", e);
+                                }
                             }
-                            if (jsonUsers.indexOf(",") > 0) {
-                                jsonUsers.deleteCharAt(jsonUsers.length()-1);
-                            }
-                            jsonUsers.append("]}");
-                            res.send(jsonUsers);
-                            traceOutputMessage(span, jsonUsers.toString());
+                            res.send(returnObject.toString());
+                            traceOutputMessage(span, returnObject.asText());
                         }
                     }).thenRun(span::finish)
                     .exceptionally(t -> {

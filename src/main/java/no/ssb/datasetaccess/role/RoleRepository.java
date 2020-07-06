@@ -113,7 +113,6 @@ public class RoleRepository {
                     Row row = iterator.next();
                     String json = Json.encode(row.get(JsonObject.class, 1));
                     Role role = ProtobufJsonUtils.toPojo(json, Role.class);
-//                    LOG.info("rolle: {}", role);
                     roles.add(role);
                 }
                 future.complete(roles);

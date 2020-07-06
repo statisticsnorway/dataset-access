@@ -9,7 +9,6 @@ import io.vertx.sqlclient.Row;
 import io.vertx.sqlclient.RowIterator;
 import io.vertx.sqlclient.RowSet;
 import io.vertx.sqlclient.Tuple;
-import no.ssb.dapla.auth.dataset.protobuf.Role;
 import no.ssb.dapla.auth.dataset.protobuf.User;
 import no.ssb.helidon.media.protobuf.ProtobufJsonUtils;
 import org.eclipse.microprofile.metrics.Counter;
@@ -18,7 +17,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -92,7 +90,6 @@ public class UserRepository {
                     Row row = iterator.next();
                     String json = Json.encode(row.get(JsonObject.class, 1));
                     User user = ProtobufJsonUtils.toPojo(json, User.class);
-//                    LOG.info("rolle: {}", user);
                     users.add(user);
                 }
                 future.complete(users);

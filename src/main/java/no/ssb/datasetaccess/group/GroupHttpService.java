@@ -1,5 +1,9 @@
 package no.ssb.datasetaccess.group;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.helidon.common.http.Http;
 import io.helidon.webserver.Handler;
 import io.helidon.webserver.Routing;
@@ -17,7 +21,6 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.TimeUnit;
 
 import static no.ssb.helidon.application.Tracing.*;
-import static no.ssb.helidon.application.Tracing.logError;
 
 public class GroupHttpService implements Service {
 
@@ -28,6 +31,8 @@ public class GroupHttpService implements Service {
     public GroupHttpService(GroupRepository repository) {
         this.repository = repository;
     }
+
+    final ObjectMapper mapper = new ObjectMapper();
 
     @Override
     public void update(Routing.Rules rules) {
@@ -83,16 +88,18 @@ public class GroupHttpService implements Service {
                         if (groups == null) {
                             res.status(Http.Status.NOT_FOUND_404).send();
                         } else {
-                            StringBuffer jsonGroups = new StringBuffer("{\"groups\": [");
+                            ObjectNode returnObject = mapper.createObjectNode();
+                            ArrayNode groupArray = returnObject.putArray("groups");
                             for (Group group : groups) {
-                                jsonGroups.append(ProtobufJsonUtils.toString(group)).append(',');
+                                try {
+                                    groupArray.add(mapper.readTree(ProtobufJsonUtils.toString(group)));
+                                } catch (JsonProcessingException e) {
+                                    logError(span, e);
+                                    LOG.error("unexpected error reading user-tree", e);
+                                }
                             }
-                            if (jsonGroups.indexOf(",") > 0) {
-                                jsonGroups.deleteCharAt(jsonGroups.length()-1);
-                            }
-                            jsonGroups.append("]}");
-                            res.send(jsonGroups);
-                            traceOutputMessage(span, jsonGroups.toString());
+                            res.send(returnObject.toString());
+                            traceOutputMessage(span, returnObject.asText());
                         }
                     }).thenRun(span::finish)
                     .exceptionally(t -> {

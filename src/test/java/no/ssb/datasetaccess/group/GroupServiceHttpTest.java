@@ -6,9 +6,16 @@ import no.ssb.helidon.media.protobuf.ProtobufJsonUtils;
 import no.ssb.testing.helidon.IntegrationTestExtension;
 import no.ssb.testing.helidon.ResponseHelper;
 import no.ssb.testing.helidon.TestClient;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.skyscreamer.jsonassert.JSONAssert;
+import org.skyscreamer.jsonassert.JSONCompareMode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import java.util.List;
@@ -16,11 +23,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 @ExtendWith(IntegrationTestExtension.class)
 class GroupServiceHttpTest {
+    private static final Logger LOG = LoggerFactory.getLogger(GroupServiceHttpTest.class);
 
     @Inject
     UserAccessApplication application;
@@ -55,18 +63,24 @@ class GroupServiceHttpTest {
     }
 
     @Test
-    void thatGetAllGroupsWorks() {
-        String groupJson = client.get("/group").expect200Ok().body();
-        assertEquals("{\"groups\": []}", groupJson);
+    void thatGetAllGroupsWorks() throws JSONException {
+        String getResult = client.get("/group").expect200Ok().body();
+
+        JSONObject expected = new JSONObject();
+        JSONArray groups = new JSONArray();
+        expected.put("groups", groups);
+        JSONAssert.assertEquals(expected, new JSONObject(getResult), JSONCompareMode.LENIENT);
 
         Group group1 = createGroup("group1", "This is the first group", List.of("reader"));
         Group group2 = createGroup("group2", "This is the second group", List.of("writer"));
         Group group3 = createGroup("group3", "This is the third group", List.of("reader"));
-        groupJson = client.get("/group").expect200Ok().body();
-        assertNotNull(groupJson);
-        assertTrue(groupJson.contains("group1"));
-        assertTrue(groupJson.contains(ProtobufJsonUtils.toString(group2)));
-        assertTrue(groupJson.contains(ProtobufJsonUtils.toString(group3)));
+        getResult = client.get("/group").expect200Ok().body();
+
+        groups.put(new JSONObject(ProtobufJsonUtils.toString(group1)));
+        groups.put(new JSONObject(ProtobufJsonUtils.toString(group2)));
+        groups.put(new JSONObject(ProtobufJsonUtils.toString(group3)));
+
+        JSONAssert.assertEquals(expected, new JSONObject(getResult), JSONCompareMode.LENIENT);
     }
 
     @Test
