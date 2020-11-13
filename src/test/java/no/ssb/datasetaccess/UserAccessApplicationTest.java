@@ -15,17 +15,18 @@ import java.util.function.Supplier;
 
 import static io.helidon.config.ConfigSources.classpath;
 import static io.helidon.config.ConfigSources.file;
+import static java.util.Optional.ofNullable;
 
 class UserAccessApplicationTest {
 
     @Test
     void thatApplicationStackCanBeStarted() throws InterruptedException, ExecutionException, TimeoutException {
         List<Supplier<ConfigSource>> configSourceSupplierList = new LinkedList<>();
-        String overrideFile = System.getenv("HELIDON_CONFIG_FILE");
+        String overrideFile = ofNullable(System.getProperty("helidon.config.file")).orElseGet(() -> System.getenv("HELIDON_CONFIG_FILE"));
         if (overrideFile != null) {
             configSourceSupplierList.add(file(overrideFile).optional());
         }
-        String profile = System.getenv("HELIDON_CONFIG_PROFILE");
+        String profile = ofNullable(System.getProperty("helidon.config.profile")).orElseGet(() -> System.getenv("HELIDON_CONFIG_PROFILE"));
         if (profile == null) {
             profile = "dev";
         }

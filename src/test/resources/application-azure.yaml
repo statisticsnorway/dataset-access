@@ -21,4 +21,4 @@ flyway:
   password: dataset_access
 
 init:
-  db-connectivity-attempts: 30
+  db-connectivity-attempts: 10

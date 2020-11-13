@@ -6,7 +6,7 @@
     <parent>
         <groupId>no.ssb.dapla</groupId>
         <artifactId>application</artifactId>
-        <version>16</version>
+        <version>17</version>
         <relativePath/>
     </parent>
 
@@ -110,6 +110,12 @@
             <groupId>no.ssb.org.skyscreamer</groupId>
             <artifactId>jsonassert</artifactId>
             <version>1.5.2-SNAPSHOT</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>no.ssb.helidon</groupId>
+            <artifactId>helidon-testing</artifactId>
+            <version>0.8</version>
             <scope>test</scope>
         </dependency>
 
