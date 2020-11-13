@@ -52,6 +52,8 @@ variables:
     value: $(Pipeline.Workspace)/.m2/repository
   - name: MAVEN_OPTS
     value: '-Dmaven.repo.local=$(MAVEN_CACHE_FOLDER)'
+  - name: HELIDON_CONFIG_PROFILE
+    value: azure
 
 # Job which runs mvn test and verify, Sonar Analysis (if branch is master), mvn install,
 # builds Docker image, pushes this to GCR and checks for any image vulnerabilities
