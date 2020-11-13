@@ -7,7 +7,7 @@ grpcserver:
 
 pgpool:
   connect-options:
-    port: 10102
+    port: 5432
     host: postgres
     database: dataset_access
     user: dataset_access
@@ -16,7 +16,7 @@ pgpool:
     max-size: 5
 
 flyway:
-  url: jdbc:postgresql://postgres:10102/dataset_access
+  url: jdbc:postgresql://postgres:5432/dataset_access
   user: dataset_access
   password: dataset_access
 
