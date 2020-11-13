@@ -59,7 +59,9 @@ jobs:
   - template: complete-builds/job-test-integration-coverage-build-gcr.yml@templates
     parameters:
       project: dapla
-      imageName: dataset-access
+      imageName: $(imageName)
+      repoName: $(repoName)
+      artifactName: dataset-access
 
   # Job which pulls the Docker image with the correct tag (image-scan-tag) from GCR, tags this
   # with the git tag, and pushes that back to GCR.
