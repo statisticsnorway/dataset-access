@@ -1,10 +1,9 @@
 package no.ssb.datasetaccess.maintenance;
 
+import io.helidon.common.reactive.Multi;
 import no.ssb.datasetaccess.group.GroupRepository;
 import no.ssb.datasetaccess.role.RoleRepository;
 import no.ssb.datasetaccess.user.UserRepository;
-
-import java.util.concurrent.CompletableFuture;
 
 public class MaintenanceRepository {
 
@@ -18,9 +17,7 @@ public class MaintenanceRepository {
         this.userRepository = userRepository;
     }
 
-    public CompletableFuture<Void> deleteAll() {
-        return roleRepository.deleteAllRoles()
-                .thenCombine(groupRepository.deleteAllGroups(), (a, b) -> null)
-                .thenCombine(userRepository.deleteAllUsers(), (a, b) -> null);
+    public Multi<Long> deleteAll() {
+        return Multi.concat(roleRepository.deleteAllRoles(), groupRepository.deleteAllGroups(), userRepository.deleteAllUsers());
     }
 }

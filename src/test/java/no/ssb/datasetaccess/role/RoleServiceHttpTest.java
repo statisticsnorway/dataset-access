@@ -65,7 +65,7 @@ class RoleServiceHttpTest {
 
 
     Role createRole(String roleId, Iterable<Privilege> privilegeIncludes, Iterable<String> pathIncludes, Valuation maxValuation, Iterable<DatasetState> stateIncludes) {
-        Role role = buildRole(roleId, privilegeIncludes, pathIncludes, maxValuation,  stateIncludes);
+        Role role = buildRole(roleId, privilegeIncludes, pathIncludes, maxValuation, stateIncludes);
         try {
             application.get(RoleRepository.class).createOrUpdateRole(role).get(3, TimeUnit.SECONDS);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
@@ -75,7 +75,7 @@ class RoleServiceHttpTest {
     }
 
     Role readRole(String roleId) {
-        return application.get(RoleRepository.class).getRole(roleId).join();
+        return application.get(RoleRepository.class).getRole(roleId).await();
     }
 
     @Test
@@ -131,13 +131,13 @@ class RoleServiceHttpTest {
     @Test
     void thatCreateUpsertPutRoleWorks() {
         Role upsert_role = buildRole("upsert_role", List.of(Privilege.CREATE, Privilege.READ),
-                        List.of("/a/b/c"), Valuation.INTERNAL, List.of(DatasetState.RAW, DatasetState.INPUT));
+                List.of("/a/b/c"), Valuation.INTERNAL, List.of(DatasetState.RAW, DatasetState.INPUT));
         client.put("/role/upsert_role", upsert_role).expect201Created();
         Role role1 = readRole("upsert_role");
         assertEquals(List.of(Privilege.CREATE, Privilege.READ), role1.getPrivileges().getIncludesList());
 
         Role another_upsert_role = buildRole("upsert_role", List.of(Privilege.UPDATE, Privilege.DELETE),
-                        List.of("//d/e"), Valuation.SHIELDED, List.of(DatasetState.PROCESSED));
+                List.of("//d/e"), Valuation.SHIELDED, List.of(DatasetState.PROCESSED));
         client.put("/role/upsert_role", another_upsert_role).expect201Created();
         Role role2 = readRole("upsert_role");
         assertEquals(List.of(Privilege.UPDATE, Privilege.DELETE), role2.getPrivileges().getIncludesList());

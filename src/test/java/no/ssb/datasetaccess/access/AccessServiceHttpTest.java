@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import io.helidon.common.reactive.Multi;
 import no.ssb.dapla.auth.dataset.protobuf.DatasetState;
 import no.ssb.dapla.auth.dataset.protobuf.DatasetStateSet;
 import no.ssb.dapla.auth.dataset.protobuf.Group;
@@ -27,11 +28,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
+import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -48,11 +47,10 @@ class AccessServiceHttpTest {
     TestClient client;
 
     @BeforeEach
-    void clearRepositories() throws InterruptedException, ExecutionException, TimeoutException {
-        CompletableFuture.allOf(
-                application.get(UserRepository.class).deleteAllUsers(),
-                application.get(RoleRepository.class).deleteAllRoles()
-        ).get(3, TimeUnit.SECONDS);
+    void clearRepositories() {
+        Multi.concat(application.get(UserRepository.class).deleteAllUsers(), application.get(RoleRepository.class).deleteAllRoles())
+                .collectList()
+                .await(3, TimeUnit.SECONDS);
     }
 
     void createUser(String userId, Iterable<String> roles) {
@@ -60,15 +58,11 @@ class AccessServiceHttpTest {
     }
 
     void createUser(String userId, Iterable<String> roles, Iterable<String> groups) {
-        try {
-            User user = User.newBuilder().setUserId(userId)
-                    .addAllRoles(roles != null ? roles : List.of(""))
-                    .addAllGroups(groups != null ? groups : List.of(""))
-                    .build();
-            application.get(UserRepository.class).createOrUpdateUser(user).get(3, TimeUnit.SECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            throw new RuntimeException(e);
-        }
+        User user = User.newBuilder().setUserId(userId)
+                .addAllRoles(roles != null ? roles : Collections.emptyList())
+                .addAllGroups(groups != null ? groups : Collections.emptyList())
+                .build();
+        application.get(UserRepository.class).createOrUpdateUser(user).await(3, TimeUnit.SECONDS);
     }
 
     void createRole(String roleId, Iterable<Privilege> privilegeIncludes, Iterable<String> pathIncludes, Valuation maxValuation, Iterable<DatasetState> stateIncludes) {
@@ -98,25 +92,17 @@ class AccessServiceHttpTest {
                 .setStates(states.build())
                 .setMaxValuation(maxValuation)
                 .build();
-        try {
-            application.get(RoleRepository.class).createOrUpdateRole(role).get(3, TimeUnit.SECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            throw new RuntimeException(e);
-        }
+        application.get(RoleRepository.class).createOrUpdateRole(role).await(3, TimeUnit.SECONDS);
     }
 
     Group createGroup(String groupId, String description, Iterable<String> roles) {
-        try {
-            Group group = Group.newBuilder().setGroupId(groupId).setDescription(description).addAllRoles(roles).build();
-            application.get(GroupRepository.class).createOrUpdateGroup(group).get(3, TimeUnit.SECONDS);
-            return group;
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            throw new RuntimeException(e);
-        }
+        Group group = Group.newBuilder().setGroupId(groupId).setDescription(description).addAllRoles(roles).build();
+        application.get(GroupRepository.class).createOrUpdateGroup(group).await(3, TimeUnit.SECONDS);
+        return group;
     }
 
     Group getGroup(String groupId) {
-        return application.get(GroupRepository.class).getGroup(groupId).join();
+        return application.get(GroupRepository.class).getGroup(groupId).await();
     }
 
     @Test

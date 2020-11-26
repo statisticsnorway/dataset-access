@@ -12,23 +12,28 @@ import io.helidon.webserver.ServerResponse;
 import io.helidon.webserver.Service;
 import io.opentracing.Span;
 import no.ssb.dapla.auth.dataset.protobuf.Group;
-import no.ssb.helidon.application.TracerAndSpan;
 import no.ssb.helidon.application.Tracing;
 import no.ssb.helidon.media.protobuf.ProtobufJsonUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import static no.ssb.helidon.application.Tracing.*;
+import static no.ssb.helidon.application.Tracing.logError;
+import static no.ssb.helidon.application.Tracing.spanFromHttp;
+import static no.ssb.helidon.application.Tracing.traceInputMessage;
+import static no.ssb.helidon.application.Tracing.traceOutputMessage;
 
 public class GroupHttpService implements Service {
 
     private static final Logger LOG = LoggerFactory.getLogger(GroupHttpService.class);
 
+    final ScheduledExecutorService timeoutService;
     final GroupRepository repository;
 
-    public GroupHttpService(GroupRepository repository) {
+    public GroupHttpService(ScheduledExecutorService timeoutService, GroupRepository repository) {
+        this.timeoutService = timeoutService;
         this.repository = repository;
     }
 
@@ -43,8 +48,7 @@ public class GroupHttpService implements Service {
     }
 
     private void doGet(ServerRequest req, ServerResponse res) {
-        TracerAndSpan tracerAndSpan = spanFromHttp(req, "doGet");
-        Span span = tracerAndSpan.span();
+        Span span = spanFromHttp(req, "doGet");
         try {
             String groupId = req.path().param("groupId");
             span.setTag("groupId", groupId);
@@ -78,12 +82,12 @@ public class GroupHttpService implements Service {
     }
 
     private void doGetList(ServerRequest req, ServerResponse res) {
-        TracerAndSpan tracerAndSpan = spanFromHttp(req, "doGetList");
-        Span span = tracerAndSpan.span();
+        Span span = spanFromHttp(req, "doGetList");
         try {
-            repository.getGroupList()
-                    .orTimeout(30, TimeUnit.SECONDS)
-                    .thenAccept(groups -> {
+            repository.getAllGroups()
+                    .timeout(30, TimeUnit.SECONDS, timeoutService)
+                    .collectList()
+                    .peek(groups -> {
                         Tracing.restoreTracingContext(req.tracer(), span);
                         if (groups == null) {
                             res.status(Http.Status.NOT_FOUND_404).send();
@@ -123,10 +127,9 @@ public class GroupHttpService implements Service {
         }
     }
 
-    
+
     private void doPut(ServerRequest req, ServerResponse res, Group group) {
-        TracerAndSpan tracerAndSpan = spanFromHttp(req, "doPut");
-        Span span = tracerAndSpan.span();
+        Span span = spanFromHttp(req, "doPut");
         try {
             traceInputMessage(span, group);
             String groupId = req.path().param("groupId");
@@ -162,8 +165,7 @@ public class GroupHttpService implements Service {
     }
 
     private void doDelete(ServerRequest req, ServerResponse res) {
-        TracerAndSpan tracerAndSpan = spanFromHttp(req, "doDelete");
-        Span span = tracerAndSpan.span();
+        Span span = spanFromHttp(req, "doDelete");
         try {
             String groupId = req.path().param("groupId");
             span.setTag("groupId", groupId);

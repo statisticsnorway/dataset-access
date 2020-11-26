@@ -1,6 +1,6 @@
 package no.ssb.datasetaccess.group;
 
-import no.ssb.dapla.auth.dataset.protobuf.*;
+import no.ssb.dapla.auth.dataset.protobuf.Group;
 import no.ssb.datasetaccess.UserAccessApplication;
 import no.ssb.helidon.media.protobuf.ProtobufJsonUtils;
 import no.ssb.testing.helidon.IntegrationTestExtension;
@@ -52,7 +52,7 @@ class GroupServiceHttpTest {
     }
 
     Group getGroup(String groupId) {
-        return application.get(GroupRepository.class).getGroup(groupId).join();
+        return application.get(GroupRepository.class).getGroup(groupId).await();
     }
 
     @Test

@@ -1,56 +1,42 @@
 package no.ssb.datasetaccess;
 
 
-import io.grpc.ManagedChannelBuilder;
-import io.grpc.MethodDescriptor;
+import io.helidon.common.reactive.Single;
 import io.helidon.config.Config;
-import io.helidon.grpc.server.GrpcRouting;
-import io.helidon.grpc.server.GrpcServer;
-import io.helidon.grpc.server.GrpcServerConfiguration;
-import io.helidon.grpc.server.GrpcTracingConfig;
-import io.helidon.grpc.server.ServerRequestAttribute;
+import io.helidon.dbclient.DbClient;
+import io.helidon.dbclient.health.DbClientHealthCheck;
+import io.helidon.health.HealthSupport;
 import io.helidon.metrics.MetricsSupport;
 import io.helidon.tracing.TracerBuilder;
 import io.helidon.webserver.Routing;
-import io.helidon.webserver.ServerConfiguration;
 import io.helidon.webserver.WebServer;
 import io.helidon.webserver.WebTracingConfig;
 import io.helidon.webserver.accesslog.AccessLogSupport;
 import io.opentracing.Tracer;
-import io.opentracing.contrib.grpc.OperationNameConstructor;
-import io.vertx.pgclient.PgConnectOptions;
-import io.vertx.pgclient.PgPool;
-import io.vertx.sqlclient.PoolOptions;
-import no.ssb.datasetaccess.access.AccessGrpcService;
 import no.ssb.datasetaccess.access.AccessHttpService;
 import no.ssb.datasetaccess.access.AccessService;
 import no.ssb.datasetaccess.group.GroupHttpService;
 import no.ssb.datasetaccess.group.GroupRepository;
-import no.ssb.datasetaccess.health.Health;
-import no.ssb.datasetaccess.health.HealthAwarePgPool;
-import no.ssb.datasetaccess.health.ReadinessSample;
 import no.ssb.datasetaccess.maintenance.MaintenanceHttpService;
 import no.ssb.datasetaccess.maintenance.MaintenanceRepository;
 import no.ssb.datasetaccess.role.RoleHttpService;
 import no.ssb.datasetaccess.role.RoleRepository;
 import no.ssb.datasetaccess.user.UserHttpService;
 import no.ssb.datasetaccess.user.UserRepository;
-import no.ssb.helidon.application.AuthorizationInterceptor;
 import no.ssb.helidon.application.DefaultHelidonApplication;
 import no.ssb.helidon.application.HelidonApplication;
-import no.ssb.helidon.application.HelidonGrpcWebTranscoding;
 import no.ssb.helidon.media.protobuf.ProtobufJsonSupport;
 import org.flywaydb.core.Flyway;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
-public class UserAccessApplication extends DefaultHelidonApplication {
+import static java.util.Optional.ofNullable;
+
+public class UserAccessApplication extends DefaultHelidonApplication implements HelidonApplication {
 
     private static final Logger LOG;
 
@@ -64,8 +50,8 @@ public class UserAccessApplication extends DefaultHelidonApplication {
         new UserAccessApplicationBuilder().build().start()
                 .toCompletableFuture()
                 .orTimeout(10, TimeUnit.SECONDS)
-                .thenAccept(app -> LOG.info("Webserver running at port: {}, Grpcserver running at port: {}, started in {} ms",
-                        app.get(WebServer.class).port(), app.get(GrpcServer.class).port(), System.currentTimeMillis() - startTime))
+                .thenAccept(app -> LOG.info("Webserver running at port: {}, started in {} ms",
+                        app.get(WebServer.class).port(), System.currentTimeMillis() - startTime))
                 .exceptionally(throwable -> {
                     LOG.error("While starting application", throwable);
                     System.exit(1);
@@ -79,23 +65,25 @@ public class UserAccessApplication extends DefaultHelidonApplication {
         TracerBuilder<?> tracerBuilder = TracerBuilder.create(config.get("tracing")).registerGlobal(false);
         Tracer tracer = tracerBuilder.build();
 
-        AtomicReference<ReadinessSample> lastReadySample = new AtomicReference<>(new ReadinessSample(false, System.currentTimeMillis()));
+        DbClient dbClient = DbClient.builder()
+                .config(config.get("db"))
+                // .mapperProvider(new JsonProcessingMapperProvider())
+                .build();
 
-        // reactive postgres client
-        PgPool pgPool = new HealthAwarePgPool(initPgPool(config.get("pgpool")), lastReadySample);
-
-        // initialize health, including a database connectivity wait-loop
-        Health health = new Health(config, pgPool, lastReadySample, () -> get(WebServer.class));
+        HealthSupport health = HealthSupport.builder()
+                .addLiveness(DbClientHealthCheck.create(dbClient))
+                .addReadiness()
+                .build();
 
         // schema migration using flyway and jdbc
         migrateDatabaseSchema(config.get("flyway"));
 
         // repositories
-        UserRepository userRepository = new UserRepository(pgPool);
-        GroupRepository groupRepository = new GroupRepository(pgPool);
-        RoleRepository roleRepository = new RoleRepository(pgPool);
+        UserRepository userRepository = new UserRepository(dbClient);
+        GroupRepository groupRepository = new GroupRepository(dbClient);
+        RoleRepository roleRepository = new RoleRepository(dbClient);
         MaintenanceRepository maintenanceRepository = new MaintenanceRepository(roleRepository, groupRepository, userRepository);
-        put(PgPool.class, pgPool);
+        put(DbClient.class, dbClient);
         put(UserRepository.class, userRepository);
         put(GroupRepository.class, groupRepository);
         put(RoleRepository.class, roleRepository);
@@ -103,64 +91,29 @@ public class UserAccessApplication extends DefaultHelidonApplication {
 
         // services
         AccessService accessService = new AccessService(userRepository, groupRepository, roleRepository);
-        AccessGrpcService accessGrpcService = new AccessGrpcService(accessService);
-
-        // grpc-server
-        GrpcServer grpcServer = GrpcServer.create(
-                GrpcServerConfiguration.builder(config.get("grpcserver"))
-                        .tracer(tracer)
-                        .tracingConfig(GrpcTracingConfig.builder()
-                                .withStreaming()
-                                .withVerbosity()
-                                .withOperationName(new OperationNameConstructor() {
-                                    @Override
-                                    public <ReqT, RespT> String constructOperationName(MethodDescriptor<ReqT, RespT> method) {
-                                        return "Grpc server received " + method.getFullMethodName();
-                                    }
-                                })
-                                .withTracedAttributes(ServerRequestAttribute.CALL_ATTRIBUTES,
-                                        ServerRequestAttribute.HEADERS,
-                                        ServerRequestAttribute.METHOD_NAME)
-                                .build()
-                        ),
-                GrpcRouting.builder()
-                        .intercept(new AuthorizationInterceptor())
-                        .register(accessGrpcService)
-                        .build()
-        );
-        put(GrpcServer.class, grpcServer);
+        ScheduledExecutorService timeoutService = Executors.newSingleThreadScheduledExecutor();
 
         // routing
         Routing routing = Routing.builder()
                 .register(AccessLogSupport.create(config.get("webserver.access-log")))
                 .register(WebTracingConfig.create(config.get("tracing")))
-                .register(ProtobufJsonSupport.create())
                 .register(MetricsSupport.create())
                 .register(health)
-                .register("/role", new RoleHttpService(roleRepository))
-                .register("/user", new UserHttpService(userRepository))
-                .register("/group", new GroupHttpService(groupRepository))
-                .register("/maintenance", new MaintenanceHttpService(maintenanceRepository))
-                .register("/access", new AccessHttpService(accessService))
-                .register("/rpc", new HelidonGrpcWebTranscoding(
-                        () -> ManagedChannelBuilder
-                                .forAddress("localhost", Optional.of(grpcServer)
-                                        .filter(GrpcServer::isRunning)
-                                        .map(GrpcServer::port)
-                                        .orElseThrow())
-                                .usePlaintext()
-                                .build(),
-                        accessGrpcService
-                ))
+                .register("/role", new RoleHttpService(timeoutService, roleRepository))
+                .register("/user", new UserHttpService(timeoutService, userRepository))
+                .register("/group", new GroupHttpService(timeoutService, groupRepository))
+                .register("/maintenance", new MaintenanceHttpService(timeoutService, maintenanceRepository))
+                .register("/access", new AccessHttpService(timeoutService, accessService))
                 .build();
         put(Routing.class, routing);
 
         // web-server
-        WebServer webServer = WebServer.create(
-                ServerConfiguration.builder(config.get("webserver"))
-                        .tracer(tracer)
-                        .build(),
-                routing);
+        WebServer webServer = WebServer.builder()
+                .config(config.get("webserver"))
+                .tracer(tracer)
+                .addMediaSupport(ProtobufJsonSupport.create())
+                .routing(routing)
+                .build();
         put(WebServer.class, webServer);
     }
 
@@ -175,25 +128,16 @@ public class UserAccessApplication extends DefaultHelidonApplication {
         flyway.migrate();
     }
 
-    private PgPool initPgPool(Config config) {
-        Config connectConfig = config.get("connect-options");
-        PgConnectOptions connectOptions = new PgConnectOptions()
-                .setPort(connectConfig.get("port").asInt().orElse(15432))
-                .setHost(connectConfig.get("host").asString().orElse("localhost"))
-                .setDatabase(connectConfig.get("database").asString().orElse("rdc"))
-                .setUser(connectConfig.get("user").asString().orElse("rdc"))
-                .setPassword(connectConfig.get("password").asString().orElse("rdc"));
-
-        Config poolConfig = config.get("pool-options");
-        PoolOptions poolOptions = new PoolOptions()
-                .setMaxSize(poolConfig.get("max-size").asInt().orElse(5));
-
-        return PgPool.pool(connectOptions, poolOptions);
+    public Single<UserAccessApplication> start() {
+        return ofNullable(get(WebServer.class))
+                .map(webServer -> webServer.start().map(ws -> this))
+                .orElse(Single.just(this));
     }
 
-    @Override
-    public CompletionStage<HelidonApplication> stop() {
-        return super.stop()
-                .thenCombine(CompletableFuture.runAsync(() -> get(PgPool.class).close()), (a, v) -> this);
+    public Single<UserAccessApplication> stop() {
+        return Single.create(ofNullable(get(WebServer.class))
+                .map(webServer -> webServer.shutdown().map(ws -> this))
+                .orElse(Single.just(this))
+        );
     }
 }

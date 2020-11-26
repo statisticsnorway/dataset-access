@@ -53,7 +53,7 @@ class MaintenanceServiceHttpTest {
     }
 
     Group getGroup(String groupId) {
-        return application.get(GroupRepository.class).getGroup(groupId).join();
+        return application.get(GroupRepository.class).getGroup(groupId).await();
     }
 
     Role buildRole(String roleId, Iterable<Privilege> privilegeIncludes, Iterable<String> pathIncludes, Valuation maxValuation, Iterable<DatasetState> stateIncludes) {
@@ -83,7 +83,7 @@ class MaintenanceServiceHttpTest {
     }
 
     Role readRole(String roleId) {
-        return application.get(RoleRepository.class).getRole(roleId).join();
+        return application.get(RoleRepository.class).getRole(roleId).await();
     }
 
     User createUser(String userId, Iterable<String> groups, Iterable<String> roles) {
@@ -97,7 +97,7 @@ class MaintenanceServiceHttpTest {
     }
 
     User getUser(String userId) {
-        return application.get(UserRepository.class).getUser(userId).join();
+        return application.get(UserRepository.class).getUser(userId).await();
     }
 
     @Test

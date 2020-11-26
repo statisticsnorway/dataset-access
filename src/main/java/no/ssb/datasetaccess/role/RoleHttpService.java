@@ -13,12 +13,12 @@ import io.helidon.webserver.ServerResponse;
 import io.helidon.webserver.Service;
 import io.opentracing.Span;
 import no.ssb.dapla.auth.dataset.protobuf.Role;
-import no.ssb.helidon.application.TracerAndSpan;
 import no.ssb.helidon.application.Tracing;
 import no.ssb.helidon.media.protobuf.ProtobufJsonUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static no.ssb.helidon.application.Tracing.logError;
@@ -30,9 +30,11 @@ public class RoleHttpService implements Service {
 
     private static final Logger LOG = LoggerFactory.getLogger(RoleHttpService.class);
 
+    final ScheduledExecutorService timeoutService;
     final RoleRepository repository;
 
-    public RoleHttpService(RoleRepository repository) {
+    public RoleHttpService(ScheduledExecutorService timeoutService, RoleRepository repository) {
+        this.timeoutService = timeoutService;
         this.repository = repository;
     }
 
@@ -47,13 +49,12 @@ public class RoleHttpService implements Service {
     }
 
     private void doGet(ServerRequest req, ServerResponse res) {
-        TracerAndSpan tracerAndSpan = spanFromHttp(req, "doGet");
-        Span span = tracerAndSpan.span();
+        Span span = spanFromHttp(req, "doGet");
         try {
             String roleId = req.path().param("roleId");
             span.setTag("roleId", roleId);
             repository.getRole(roleId)
-                    .orTimeout(30, TimeUnit.SECONDS)
+                    .timeout(30, TimeUnit.SECONDS, timeoutService)
                     .thenAccept(role -> {
                         Tracing.restoreTracingContext(req.tracer(), span);
                         if (role == null) {
@@ -85,12 +86,12 @@ public class RoleHttpService implements Service {
     }
 
     private void doGetAll(ServerRequest req, ServerResponse res) {
-        TracerAndSpan tracerAndSpan = spanFromHttp(req, "doGetAll");
-        Span span = tracerAndSpan.span();
+        Span span = spanFromHttp(req, "doGetAll");
         try {
             repository.getRoleList(null)
-                    .orTimeout(30, TimeUnit.SECONDS)
-                    .thenAccept(roles -> {
+                    .timeout(30, TimeUnit.SECONDS, timeoutService)
+                    .collectList()
+                    .peek(roles -> {
                         Tracing.restoreTracingContext(req.tracer(), span);
                         if (roles == null) {
                             res.status(Http.Status.NOT_FOUND_404).send();
@@ -131,8 +132,7 @@ public class RoleHttpService implements Service {
     }
 
     private void doPut(ServerRequest req, ServerResponse res, Role role) {
-        TracerAndSpan tracerAndSpan = spanFromHttp(req, "doPut");
-        Span span = tracerAndSpan.span();
+        Span span = spanFromHttp(req, "doPut");
         try {
             traceInputMessage(span, role);
             String roleId = req.path().param("roleId");
@@ -144,7 +144,7 @@ public class RoleHttpService implements Service {
                 return;
             }
             repository.createOrUpdateRole(role)
-                    .orTimeout(30, TimeUnit.SECONDS)
+                    .timeout(30, TimeUnit.SECONDS, timeoutService)
                     .thenRun(() -> {
                         Tracing.restoreTracingContext(req.tracer(), span);
                         res.headers().add("Location", "/role/" + roleId);
@@ -172,13 +172,12 @@ public class RoleHttpService implements Service {
     }
 
     private void doDelete(ServerRequest req, ServerResponse res) {
-        TracerAndSpan tracerAndSpan = spanFromHttp(req, "doDelete");
-        Span span = tracerAndSpan.span();
+        Span span = spanFromHttp(req, "doDelete");
         try {
             String roleId = req.path().param("roleId");
             span.setTag("roleId", roleId);
             repository.deleteRole(roleId)
-                    .orTimeout(30, TimeUnit.SECONDS)
+                    .timeout(30, TimeUnit.SECONDS, timeoutService)
                     .thenRun(() -> {
                         Tracing.restoreTracingContext(req.tracer(), span);
                         res.send();

@@ -12,23 +12,28 @@ import io.helidon.webserver.ServerResponse;
 import io.helidon.webserver.Service;
 import io.opentracing.Span;
 import no.ssb.dapla.auth.dataset.protobuf.User;
-import no.ssb.helidon.application.TracerAndSpan;
 import no.ssb.helidon.application.Tracing;
 import no.ssb.helidon.media.protobuf.ProtobufJsonUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import static no.ssb.helidon.application.Tracing.*;
+import static no.ssb.helidon.application.Tracing.logError;
+import static no.ssb.helidon.application.Tracing.spanFromHttp;
+import static no.ssb.helidon.application.Tracing.traceInputMessage;
+import static no.ssb.helidon.application.Tracing.traceOutputMessage;
 
 public class UserHttpService implements Service {
 
     private static final Logger LOG = LoggerFactory.getLogger(UserHttpService.class);
 
+    final ScheduledExecutorService timeoutService;
     final UserRepository repository;
 
-    public UserHttpService(UserRepository repository) {
+    public UserHttpService(ScheduledExecutorService timeoutService, UserRepository repository) {
+        this.timeoutService = timeoutService;
         this.repository = repository;
     }
 
@@ -43,8 +48,7 @@ public class UserHttpService implements Service {
     }
 
     private void doGet(ServerRequest req, ServerResponse res) {
-        TracerAndSpan tracerAndSpan = spanFromHttp(req, "doGet");
-        Span span = tracerAndSpan.span();
+        Span span = spanFromHttp(req, "doGet");
         try {
             String userId = req.path().param("userId");
             span.setTag("userId", userId);
@@ -78,12 +82,12 @@ public class UserHttpService implements Service {
     }
 
     private void doGetList(ServerRequest req, ServerResponse res) {
-        TracerAndSpan tracerAndSpan = spanFromHttp(req, "doGetList");
-        Span span = tracerAndSpan.span();
+        Span span = spanFromHttp(req, "doGetList");
         try {
             repository.getUserList(null)
-                    .orTimeout(30, TimeUnit.SECONDS)
-                    .thenAccept(users -> {
+                    .timeout(30, TimeUnit.SECONDS, timeoutService)
+                    .collectList()
+                    .peek(users -> {
                         Tracing.restoreTracingContext(req.tracer(), span);
                         if (users == null) {
                             res.status(Http.Status.NOT_FOUND_404).send();
@@ -125,8 +129,7 @@ public class UserHttpService implements Service {
 
 
     private void doPut(ServerRequest req, ServerResponse res, User user) {
-        TracerAndSpan tracerAndSpan = spanFromHttp(req, "doPut");
-        Span span = tracerAndSpan.span();
+        Span span = spanFromHttp(req, "doPut");
         try {
             traceInputMessage(span, user);
             String userId = req.path().param("userId");
@@ -162,8 +165,7 @@ public class UserHttpService implements Service {
     }
 
     private void doDelete(ServerRequest req, ServerResponse res) {
-        TracerAndSpan tracerAndSpan = spanFromHttp(req, "doDelete");
-        Span span = tracerAndSpan.span();
+        Span span = spanFromHttp(req, "doDelete");
         try {
             String userId = req.path().param("userId");
             span.setTag("userId", userId);

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.protobuf.LazyStringArrayList;
+import io.helidon.common.reactive.Single;
 import io.opentracing.Span;
 import no.ssb.dapla.auth.dataset.protobuf.DatasetState;
 import no.ssb.dapla.auth.dataset.protobuf.DatasetStateSet;
@@ -29,14 +30,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
 import static java.util.Optional.ofNullable;
 
 public class AccessService {
-    private static final Logger LOG = LoggerFactory.getLogger(AccessService.class);
 
+    private static final Logger LOG = LoggerFactory.getLogger(AccessService.class);
 
     final UserRepository userRepository;
     final GroupRepository groupRepository;
@@ -49,40 +49,32 @@ public class AccessService {
         this.roleRepository = roleRepository;
     }
 
-    CompletableFuture<Boolean> hasAccess(Span span, String userId, Privilege privilege, String path, Valuation valuation, DatasetState state) {
-        CompletableFuture<Boolean> future = new CompletableFuture<>();
+    Single<Boolean> hasAccess(Span span, String userId, Privilege privilege, String path, Valuation valuation, DatasetState state) {
         span.log("calling userRepository.getUser()");
-        userRepository.getUser(userId).thenAccept(user -> {
+        return userRepository.getUser(userId).flatMapSingle(user -> {
             if (user == null) {
                 span.log("user not found");
-                future.complete(false);
-                return;
+                return Single.just(false);
             }
-            groupRepository.getGroups(user.getGroupsList()).thenAccept(groups -> {
+            return groupRepository.getGroups(user.getGroupsList()).collectList().flatMapSingle(groups -> {
                 Set<String> roleIds = new LinkedHashSet<>(user.getRolesList());
                 for (Group group : groups) {
                     roleIds.addAll(group.getRolesList());
                 }
-                roleRepository.getRoles(roleIds).thenAccept(roles -> {
+                return roleRepository.getRoles(new ArrayList<>(roleIds)).collectList().map(roles -> {
                     for (Role role : roles) {
                         span.log(Map.of("event", "checking role", "roleId", role.getRoleId()));
                         if (!matchRole(role, privilege, path, valuation, state)) {
                             continue;
                         }
                         span.log(Map.of("event", "access granted", "roleId", role.getRoleId()));
-                        future.complete(true);
-                        return;
+                        return true;
                     }
                     span.log("access denied");
-                    future.complete(false);
-                }).exceptionally(t -> {
-                    future.completeExceptionally(t);
-                    return null;
+                    return false;
                 });
-
             });
-        });
-        return future;
+        }).switchIfEmpty(Single.just(false));
     }
 
 
@@ -162,15 +154,14 @@ public class AccessService {
         return false; // non-empty include set, but no matches
     }
 
-    CompletableFuture<JsonNode> listMatchingUsersRolesAndGroupsByPath(Span span, String path, String valuation, String state) {
-        CompletableFuture<JsonNode> future = new CompletableFuture<>();
+    Single<JsonNode> listMatchingUsersRolesAndGroupsByPath(Span span, String path, String valuation, String state) {
         ArrayNode result = objectMapper.createArrayNode();
         span.log("userRepository.getUserList()");
-        userRepository.getUserList(null).thenAccept(users -> {
+        return userRepository.getUserList(null).collectList().flatMapSingle(users -> {
             span.log("calling roleRepository.getRoleList()");
-            roleRepository.getRoleList(null).thenAccept(roles -> {
+            return roleRepository.getRoleList(null).collectList().flatMapSingle(roles -> {
                 span.log("calling groupRepository.getGroupList()");
-                groupRepository.getGroupList().thenAccept(groups -> {
+                return groupRepository.getAllGroups().collectList().flatMapSingle(groups -> {
                     roles.stream()
                             .filter(role -> matchRole(role, null, path, Valuation.valueOf(valuation.toUpperCase()), DatasetState.valueOf(state.toUpperCase())))
                             .forEach(role -> {
@@ -185,18 +176,13 @@ public class AccessService {
                                         .forEach(user -> addMatchToResult(result, role, user, ""));
                             });
                     span.log("return catalogAccess");
-                    future.complete(result);
-
+                    return Single.just(result);
                 });
             });
-        }).exceptionally(t -> {
-            future.completeExceptionally(t);
-            return null;
         });
-        return future;
     }
 
-    private void addMatchToResult(ArrayNode result, Role role, User user, String groupId) {
+    private static void addMatchToResult(ArrayNode result, Role role, User user, String groupId) {
         ObjectNode match = result.addObject();
         match.put("user", user.getUserId())
                 .put("role", role.getRoleId())
@@ -207,7 +193,7 @@ public class AccessService {
         }
     }
 
-    private List<Privilege> resolvePrivileges(PrivilegeSet privileges) {
+    private static List<Privilege> resolvePrivileges(PrivilegeSet privileges) {
         List<Privilege> privs = new ArrayList<>(privileges.getIncludesList());
         if (privs.size() == 0) {
             privs.addAll(Arrays.asList(Privilege.values()));
