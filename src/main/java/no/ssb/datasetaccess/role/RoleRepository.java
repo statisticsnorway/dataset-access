@@ -37,9 +37,6 @@ public class RoleRepository {
                     rolesReadCount.inc();
                     return Single.just(role);
                 }).orElseGet(Single::empty))
-                .onError(throwable -> {
-                    LOG.error("", throwable);
-                })
         );
     }
 
