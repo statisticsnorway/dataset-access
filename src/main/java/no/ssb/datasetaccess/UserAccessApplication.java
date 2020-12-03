@@ -65,6 +65,9 @@ public class UserAccessApplication extends DefaultHelidonApplication implements 
         TracerBuilder<?> tracerBuilder = TracerBuilder.create(config.get("tracing")).registerGlobal(false);
         Tracer tracer = tracerBuilder.build();
 
+        // schema migration using flyway and jdbc
+        migrateDatabaseSchema(config.get("flyway"));
+
         DbClient dbClient = DbClient.builder()
                 .config(config.get("db"))
                 // .mapperProvider(new JsonProcessingMapperProvider())
@@ -74,9 +77,6 @@ public class UserAccessApplication extends DefaultHelidonApplication implements 
                 .addLiveness(DbClientHealthCheck.create(dbClient))
                 .addReadiness()
                 .build();
-
-        // schema migration using flyway and jdbc
-        migrateDatabaseSchema(config.get("flyway"));
 
         // repositories
         UserRepository userRepository = new UserRepository(dbClient);
@@ -124,6 +124,7 @@ public class UserAccessApplication extends DefaultHelidonApplication implements 
                         flywayConfig.get("user").asString().orElse("rdc"),
                         flywayConfig.get("password").asString().orElse("rdc")
                 )
+                .connectRetries(flywayConfig.get("connect-retries").asInt().orElse(120))
                 .load();
         flyway.migrate();
     }

@@ -22,6 +22,7 @@ module no.ssb.datasetaccess {
 
     requires no.ssb.helidon.media.protobuf.json.server;
     requires java.logging;
+    requires io.helidon.dbclient;
 
     /*
      * Not so well documented requirements are declared here to force fail-fast with proper error message if
@@ -34,6 +35,9 @@ module no.ssb.datasetaccess {
     requires io.helidon.microprofile.config; // metrics uses provider org.eclipse.microprofile.config.spi.ConfigProviderResolver
     requires com.google.protobuf.util;
     requires no.ssb.helidon.application;
+    requires io.helidon.dbclient.health;
+    requires com.google.protobuf;
+    requires no.ssb.dapla.auth.dataset.protobuf;
 
     opens db.migration; // flyway needs this to read migration files
 
