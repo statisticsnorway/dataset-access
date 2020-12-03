@@ -4,8 +4,8 @@ package no.ssb.datasetaccess;
 import io.helidon.common.reactive.Single;
 import io.helidon.config.Config;
 import io.helidon.dbclient.DbClient;
-import io.helidon.dbclient.health.DbClientHealthCheck;
 import io.helidon.health.HealthSupport;
+import io.helidon.health.checks.HealthChecks;
 import io.helidon.metrics.MetricsSupport;
 import io.helidon.tracing.TracerBuilder;
 import io.helidon.webserver.Routing;
@@ -74,7 +74,7 @@ public class UserAccessApplication extends DefaultHelidonApplication implements 
                 .build();
 
         HealthSupport health = HealthSupport.builder()
-                .addLiveness(DbClientHealthCheck.create(dbClient))
+                .addLiveness(HealthChecks.healthChecks())
                 .addReadiness()
                 .build();
 
