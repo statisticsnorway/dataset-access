@@ -7,12 +7,11 @@ import io.helidon.webserver.ServerRequest;
 import io.helidon.webserver.ServerResponse;
 import io.helidon.webserver.Service;
 import io.opentracing.Span;
-import no.ssb.helidon.application.TracerAndSpan;
 import no.ssb.helidon.application.Tracing;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static no.ssb.helidon.application.Tracing.logError;
 import static no.ssb.helidon.application.Tracing.spanFromHttp;
@@ -23,7 +22,10 @@ public class MaintenanceHttpService implements Service {
 
     final MaintenanceRepository repository;
 
-    public MaintenanceHttpService(MaintenanceRepository repository) {
+    final ScheduledExecutorService timeoutService;
+
+    public MaintenanceHttpService(ScheduledExecutorService timeoutService, MaintenanceRepository repository) {
+        this.timeoutService = timeoutService;
         this.repository = repository;
     }
 
@@ -33,25 +35,25 @@ public class MaintenanceHttpService implements Service {
     }
 
     private void doDelete(ServerRequest req, ServerResponse res) {
-        TracerAndSpan tracerAndSpan = spanFromHttp(req, "doDelete");
-        Span span = tracerAndSpan.span();
+        Span span = spanFromHttp(req, "doDelete");
         try {
             repository.deleteAll()
-                    .orTimeout(30, TimeUnit.SECONDS)
-                    .thenRun(() -> {
+                    .collectList()
+                    .peek(deletedCountList -> {
                         Tracing.restoreTracingContext(req.tracer(), span);
                         res.send();
                     })
-                    .thenRun(span::finish)
-                    .exceptionally(t -> {
+                    .peek(deletedCountList -> span.finish())
+                    .onError(t -> {
                         try {
                             Tracing.restoreTracingContext(req.tracer(), span);
                             logError(span, t);
                             res.status(Http.Status.INTERNAL_SERVER_ERROR_500).send(t.getMessage());
-                            return null;
                         } finally {
                             span.finish();
                         }
+                    })
+                    .subscribe(deletedCountList -> {
                     });
         } catch (RuntimeException | Error e) {
             try {

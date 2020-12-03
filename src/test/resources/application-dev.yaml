@@ -2,18 +2,14 @@ webserver:
   port: -1
   host: "0.0.0.0"
 
-grpcserver:
-  port: -1
-
-pgpool:
-  connect-options:
-    port: 10102
-    host: localhost
-    database: dataset_access
-    user: dataset_access
-    password: dataset_access
-  pool-options:
-    max-size: 5
+db:
+  source: "jdbc"
+  connection:
+    url: "jdbc:postgresql://localhost:10102/dataset_access"
+    username: "dataset_access"
+    password: "dataset_access"
+  statements:
+    ping: "DO 0"
 
 flyway:
   url: jdbc:postgresql://localhost:10102/dataset_access
@@ -22,3 +18,6 @@ flyway:
 
 init:
   db-connectivity-attempts: 30
+
+tracing:
+  enabled: false

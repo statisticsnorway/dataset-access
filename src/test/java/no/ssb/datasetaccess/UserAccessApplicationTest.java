@@ -1,17 +1,13 @@
 package no.ssb.datasetaccess;
 
 import io.helidon.config.Config;
-import io.helidon.config.spi.ConfigSource;
 import io.helidon.webserver.WebServer;
 import no.ssb.testing.helidon.TestClient;
 import org.junit.jupiter.api.Test;
 
-import java.util.LinkedList;
-import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Supplier;
 
 import static io.helidon.config.ConfigSources.classpath;
 import static io.helidon.config.ConfigSources.file;
@@ -21,25 +17,24 @@ class UserAccessApplicationTest {
 
     @Test
     void thatApplicationStackCanBeStarted() throws InterruptedException, ExecutionException, TimeoutException {
-        List<Supplier<ConfigSource>> configSourceSupplierList = new LinkedList<>();
-        String overrideFile = ofNullable(System.getProperty("helidon.config.file")).orElseGet(() -> System.getenv("HELIDON_CONFIG_FILE"));
+        Config.Builder builder = Config.builder();
+        String overrideFile = ofNullable(System.getProperty("helidon.config.file"))
+                .orElseGet(() -> System.getenv("HELIDON_CONFIG_FILE"));
         if (overrideFile != null) {
-            configSourceSupplierList.add(file(overrideFile).optional());
+            builder.addSource(file(overrideFile).optional());
         }
-        String profile = ofNullable(System.getProperty("helidon.config.profile")).orElseGet(() -> System.getenv("HELIDON_CONFIG_PROFILE"));
-        if (profile == null) {
-            profile = "dev";
-        }
-        if (profile.equalsIgnoreCase("dev")) {
-            configSourceSupplierList.add(classpath("application-dev.yaml"));
-        } else if (profile.equalsIgnoreCase("azure")) {
-            configSourceSupplierList.add(classpath("application-azure.yaml"));
-        } else {
-            // default to dev
-            configSourceSupplierList.add(classpath("application-dev.yaml"));
-        }
-        configSourceSupplierList.add(classpath("application.yaml"));
-        UserAccessApplication application = new UserAccessApplication(Config.builder().sources(configSourceSupplierList).build());
+        String profile = ofNullable(System.getProperty("helidon.config.profile"))
+                .orElseGet(() -> ofNullable(System.getenv("HELIDON_CONFIG_PROFILE"))
+                        .orElse("dev") // default
+                );
+        String profileFilename = String.format("application-%s.yaml", profile);
+        builder.addSource(file(profileFilename).optional());
+        builder.addSource(classpath(profileFilename).optional());
+        builder.addSource(file("conf/application.yaml").optional());
+        builder.addSource(classpath("application.yaml"));
+        Config config = builder.build();
+
+        UserAccessApplication application = new UserAccessApplication(config);
         try {
             application.start().toCompletableFuture().get(5, TimeUnit.SECONDS);
             TestClient client = TestClient.newClient("localhost", application.get(WebServer.class).port());

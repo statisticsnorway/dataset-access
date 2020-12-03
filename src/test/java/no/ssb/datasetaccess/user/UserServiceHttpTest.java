@@ -52,7 +52,7 @@ class UserServiceHttpTest {
     }
 
     User getUser(String userId) {
-        return application.get(UserRepository.class).getUser(userId).join();
+        return application.get(UserRepository.class).getUser(userId).await();
     }
 
     @Test
@@ -73,7 +73,7 @@ class UserServiceHttpTest {
 
         User user1 = createUser("john", List.of("reader"));
         User user2 = createUser("mary", List.of("writer"));
-        getResult =(client.get("/user").expect200Ok().body());
+        getResult = (client.get("/user").expect200Ok().body());
 
         users.put(new JSONObject(ProtobufJsonUtils.toString(user1)));
         users.put(new JSONObject(ProtobufJsonUtils.toString(user2)));

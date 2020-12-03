@@ -4,13 +4,9 @@ import no.ssb.helidon.application.HelidonApplicationBuilder;
 module no.ssb.datasetaccess {
     requires org.slf4j;
     requires jul.to.slf4j;
-    requires org.reactivestreams;
     requires com.fasterxml.jackson.databind;
     requires com.fasterxml.jackson.annotation;
     requires com.fasterxml.jackson.core;
-    requires vertx.core;
-    requires vertx.pg.client;
-    requires vertx.sql.client;
     requires io.helidon.webserver;
     requires io.helidon.webserver.accesslog;
     requires io.helidon.config;
@@ -23,13 +19,10 @@ module no.ssb.datasetaccess {
     requires io.helidon.health;
     requires io.helidon.health.checks;
     requires io.helidon.tracing;
-    requires opentracing.grpc;
 
-    requires no.ssb.dapla.auth.dataset.protobuf;
     requires no.ssb.helidon.media.protobuf.json.server;
-    requires grpc.protobuf;
-    requires io.helidon.grpc.server;
     requires java.logging;
+    requires io.helidon.dbclient;
 
     /*
      * Not so well documented requirements are declared here to force fail-fast with proper error message if
@@ -40,10 +33,11 @@ module no.ssb.datasetaccess {
     requires jdk.naming.dns; // required by netty dns libraries used by reactive postgres
     requires java.sql; // required by flyway
     requires io.helidon.microprofile.config; // metrics uses provider org.eclipse.microprofile.config.spi.ConfigProviderResolver
-    requires perfmark.api; // needed by grpc-client
-    requires javax.inject; // required by io.helidon.grpc.server
     requires com.google.protobuf.util;
     requires no.ssb.helidon.application;
+    requires io.helidon.dbclient.health;
+    requires com.google.protobuf;
+    requires no.ssb.dapla.auth.dataset.protobuf;
 
     opens db.migration; // flyway needs this to read migration files
 
