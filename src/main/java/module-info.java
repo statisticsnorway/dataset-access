@@ -10,6 +10,7 @@ module no.ssb.datasetaccess {
     requires io.helidon.webserver;
     requires io.helidon.webserver.accesslog;
     requires io.helidon.config;
+    requires io.helidon.config.objectmapping;
     requires java.net.http;
     requires io.helidon.common.reactive;
     requires org.flywaydb.core;
@@ -42,6 +43,7 @@ module no.ssb.datasetaccess {
     opens db.migration; // flyway needs this to read migration files
 
     exports no.ssb.datasetaccess; // allows running individual integration tests from IntelliJ
+    exports no.ssb.datasetaccess.autocreate.model;
     exports no.ssb.datasetaccess.token to com.fasterxml.jackson.databind;
 
     provides HelidonApplicationBuilder with UserAccessApplicationBuilder;

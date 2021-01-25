@@ -16,6 +16,7 @@ import no.ssb.dapla.auth.dataset.protobuf.PrivilegeSet;
 import no.ssb.dapla.auth.dataset.protobuf.Role;
 import no.ssb.dapla.auth.dataset.protobuf.User;
 import no.ssb.dapla.auth.dataset.protobuf.Valuation;
+import no.ssb.datasetaccess.autocreate.AutoCreateService;
 import no.ssb.datasetaccess.group.GroupRepository;
 import no.ssb.datasetaccess.role.RoleRepository;
 import no.ssb.datasetaccess.user.UserRepository;
@@ -42,20 +43,18 @@ public class AccessService {
     final GroupRepository groupRepository;
     final RoleRepository roleRepository;
     final ObjectMapper objectMapper = new ObjectMapper();
+    final AutoCreateService autoCreateService;
 
-    public AccessService(UserRepository userRepository, GroupRepository groupRepository, RoleRepository roleRepository) {
+    public AccessService(UserRepository userRepository, GroupRepository groupRepository, RoleRepository roleRepository, AutoCreateService autoCreateService) {
         this.userRepository = userRepository;
         this.groupRepository = groupRepository;
         this.roleRepository = roleRepository;
+        this.autoCreateService = autoCreateService;
     }
 
     Single<Boolean> hasAccess(Span span, String userId, Privilege privilege, String path, Valuation valuation, DatasetState state) {
         span.log("calling userRepository.getUser()");
-        return userRepository.getUser(userId).flatMapSingle(user -> {
-            if (user == null) {
-                span.log("user not found");
-                return Single.just(false);
-            }
+        return userRepository.getUser(userId).switchIfEmpty(Single.defer(() -> autoCreateService.createNewUser(userId, span))).flatMapSingle(user -> {
             return groupRepository.getGroups(user.getGroupsList()).collectList().flatMapSingle(groups -> {
                 Set<String> roleIds = new LinkedHashSet<>(user.getRolesList());
                 for (Group group : groups) {
@@ -76,7 +75,6 @@ public class AccessService {
             });
         }).switchIfEmpty(Single.just(false));
     }
-
 
     static boolean matchRole(Role role, Privilege privilege, String path, Valuation valuation, DatasetState state) {
         if (privilege != null && !matchPrivileges(ofNullable(role.getPrivileges()), privilege::equals)) {

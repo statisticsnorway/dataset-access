@@ -15,6 +15,7 @@ import io.helidon.webserver.accesslog.AccessLogSupport;
 import io.opentracing.Tracer;
 import no.ssb.datasetaccess.access.AccessHttpService;
 import no.ssb.datasetaccess.access.AccessService;
+import no.ssb.datasetaccess.autocreate.AutoCreateService;
 import no.ssb.datasetaccess.group.GroupHttpService;
 import no.ssb.datasetaccess.group.GroupRepository;
 import no.ssb.datasetaccess.maintenance.MaintenanceHttpService;
@@ -89,8 +90,10 @@ public class UserAccessApplication extends DefaultHelidonApplication implements 
         put(RoleRepository.class, roleRepository);
         put(MaintenanceRepository.class, maintenanceRepository);
 
+        //get autocreate file
+        AutoCreateService autoCreateService = new AutoCreateService(config.get("autocreate"), userRepository, groupRepository, roleRepository);
         // services
-        AccessService accessService = new AccessService(userRepository, groupRepository, roleRepository);
+        AccessService accessService = new AccessService(userRepository, groupRepository, roleRepository, autoCreateService);
         ScheduledExecutorService timeoutService = Executors.newSingleThreadScheduledExecutor();
 
         // routing

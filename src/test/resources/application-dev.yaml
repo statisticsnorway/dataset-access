@@ -21,3 +21,6 @@ init:
 
 tracing:
   enabled: false
+
+autocreate:
+  filename: autocreate-test.yaml

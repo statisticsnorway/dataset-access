@@ -50,3 +50,6 @@ tracing:
       enabled: false
     - path: "/health/ready"
       enabled: false
+
+autocreate:
+  filename: autocreate.yaml

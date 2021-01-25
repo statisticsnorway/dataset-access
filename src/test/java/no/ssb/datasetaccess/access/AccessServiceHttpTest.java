@@ -1,11 +1,12 @@
 package no.ssb.datasetaccess.access;
 
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import io.helidon.common.reactive.Multi;
+import io.helidon.common.reactive.Single;
+
 import no.ssb.dapla.auth.dataset.protobuf.DatasetState;
 import no.ssb.dapla.auth.dataset.protobuf.DatasetStateSet;
 import no.ssb.dapla.auth.dataset.protobuf.Group;
@@ -30,9 +31,12 @@ import org.slf4j.LoggerFactory;
 import javax.inject.Inject;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @ExtendWith(IntegrationTestExtension.class)
@@ -48,7 +52,10 @@ class AccessServiceHttpTest {
 
     @BeforeEach
     void clearRepositories() {
-        Multi.concat(application.get(UserRepository.class).deleteAllUsers(), application.get(RoleRepository.class).deleteAllRoles())
+        Multi.concat(
+                application.get(UserRepository.class).deleteAllUsers(),
+                application.get(GroupRepository.class).deleteAllGroups(),
+                application.get(RoleRepository.class).deleteAllRoles())
                 .collectList()
                 .await(3, TimeUnit.SECONDS);
     }
@@ -106,10 +113,143 @@ class AccessServiceHttpTest {
     }
 
     @Test
-    void thatGetAccessWorks() {
-        createUser("john_can_update", List.of("updater"));
-        createRole("updater", List.of(Privilege.UPDATE), List.of("/ns/test"), Valuation.INTERNAL, List.of(DatasetState.RAW, DatasetState.INPUT));
-        client.get("/access/john_can_update?privilege=UPDATE&path=/ns/test&valuation=INTERNAL&state=RAW").expect200Ok();
+    void thatGetAccessOnExistingUserWorks() {
+        createUser("odin@ssb.no", List.of("user.odin@ssb.no"), List.of("felles"));
+        createRole("user.odin@ssb.no",
+                null, null,
+                List.of("/user/odin"), null,
+                Valuation.SENSITIVE,
+                null, null);
+        createRole("felles",
+                null, null,
+                List.of("/felles/", "/kilde/"), null,
+                Valuation.SENSITIVE,
+                null, null);
+        createGroup("felles","This is the felles group", List.of("felles"));
+        client.get("/access/odin@ssb.no?privilege=READ&path=/felles/&valuation=SENSITIVE&state=RAW").expect200Ok();
+        client.get("/access/odin@ssb.no?privilege=READ&path=/user/odin&valuation=SENSITIVE&state=RAW").expect200Ok();
+    }
+
+    @Test
+    void thatGetAccessOnExistingUserWithWrongPathIsDenied() {
+        createUser("odin@ssb.no", List.of("user.odin@ssb.no"), null);
+        createRole("user.odin@ssb.no",
+                null, null,
+                List.of("/user/odin"), null,
+                Valuation.SENSITIVE,
+                null, null);
+        client.get("/access/odin@ssb.no?privilege=READ&path=/denied/access&valuation=SENSITIVE&state=RAW").expect403Forbidden();
+    }
+
+    @Test
+    void thatGetAccessAutoCreatingNewUsersWorks() {
+        createRole("felles",
+                null, null,
+                List.of("/felles/", "/kilde/"), null,
+                Valuation.SENSITIVE,
+                null, null);
+        createGroup("felles","This is the felles group", List.of("felles"));
+
+        //  to the 2 autocreate paths: "/felles/" and "/user/username/"
+        client.get("/access/thor@ssb.no?privilege=CREATE&path=/user/thor/&valuation=SENSITIVE&state=RAW").expect200Ok();
+        client.get("/access/tyr@ssb.no?privilege=CREATE&path=/felles/&valuation=SENSITIVE&state=RAW").expect200Ok();
+    }
+
+    //  Should create a new user, and then deny the request
+    @Test
+    void thatGetAccessAutoCreatingNewUsersWhereRequestPathIsOutsideDefaultAccessWorks() {
+        client.get("/access/odin@ssb.no?privilege=CREATE&path=outside/default/access&valuation=SENSITIVE&state=RAW").expect403Forbidden();
+
+        //  check that user and role were created (not empty)
+        assertFalse(application.get(UserRepository.class).getUser("odin@ssb.no").await().getUserId().isEmpty());
+        assertFalse(application.get(RoleRepository.class).getRole("user.odin").await().getRoleId().isEmpty());
+    }
+
+    @Test
+    void thatGetAccessAutoCreatingNewUsersWithMalformedUserIdIsDenied() {
+        client.get("/access/does_not_exist?privilege=READ&path=a&valuation=SENSITIVE&state=RAW").expect403Forbidden();
+    }
+
+    @Test
+    void thatGetAccessAutoCreatingNewUsersWithWrongDomainIsDenied() {
+        client.get("/access/does_not_exist@does_not_exist.net?privilege=READ&path=a&valuation=SENSITIVE&state=RAW").expect403Forbidden();
+    }
+
+    @Test
+    void thatAutoCreateCreatesCorrectEntries() {
+
+        //  autoCreate new user
+        client.get("/access/thor@ssb.no?privilege=CREATE&path=/user/thor/&valuation=SENSITIVE&state=RAW").expect200Ok();
+
+        //  retrieve autocreated user and role from db
+        Single<User> autoCreatedUser = application.get(UserRepository.class).getUser("thor@ssb.no");
+        Single<Role> autoCreatedRole = application.get(RoleRepository.class).getRole("user.thor");
+
+        try {
+            //  check user
+            assertEquals("thor@ssb.no", autoCreatedUser.get().getUserId());
+            assertEquals(List.of("felles"), autoCreatedUser.get().getGroupsList());
+            assertEquals(1, autoCreatedUser.get().getGroupsCount());
+            assertEquals(List.of("user.thor"), autoCreatedUser.get().getRolesList());
+            assertEquals(1, autoCreatedUser.get().getRolesCount());
+
+            //  check roles
+            assertEquals("user.thor", autoCreatedRole.get().getRoleId());
+            assertEquals("Home folder for user thor@ssb.no", autoCreatedRole.get().getDescription());
+            assertEquals(PrivilegeSet.newBuilder()
+                            .addAllIncludes(List.of(Privilege.READ, Privilege.CREATE, Privilege.UPDATE))
+                            .addAllExcludes(List.of(Privilege.DELETE)).build(),
+                    autoCreatedRole.get().getPrivileges());
+            assertEquals(PathSet.newBuilder()
+                            .addAllIncludes(List.of("/user/thor/"))
+                            .addAllExcludes(List.of("/ns/test/thor/")).build(),
+                    autoCreatedRole.get().getPaths());
+            assertEquals(Valuation.SENSITIVE, autoCreatedRole.get().getMaxValuation());
+            assertEquals(DatasetStateSet.newBuilder()
+                            .addAllIncludes(List.of(DatasetState.RAW, DatasetState.INPUT, DatasetState.PROCESSED, DatasetState.OUTPUT, DatasetState.PRODUCT, DatasetState.OTHER))
+                            .addAllExcludes(List.of(DatasetState.TEMP)).build(),
+                    autoCreatedRole.get().getStates());
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Test
+    void thatAutoCreateDoesNotCreateDuplicateEntriesOfUsersGroupsOrRoles() {
+        createRole("felles",
+                null, null,
+                List.of("/felles/", "/kilde/"), null,
+                Valuation.SENSITIVE,
+                null, null);
+        createGroup("felles","This is the felles group", List.of("felles"));
+
+        //  create and check new user multiple times
+        client.get("/access/thor@ssb.no?privilege=CREATE&path=/user/thor/&valuation=SENSITIVE&state=RAW").expect200Ok();
+        client.get("/access/thor@ssb.no?privilege=CREATE&path=/felles/&valuation=SENSITIVE&state=RAW").expect200Ok();
+        client.get("/access/odin@ssb.no?privilege=CREATE&path=/user/odin/&valuation=SENSITIVE&state=RAW").expect200Ok();
+
+        //  count specific user in db
+        AtomicInteger userCount = new AtomicInteger();
+        application.get(UserRepository.class).getUserList("thor@ssb.no").forEach(user -> {
+            userCount.set(userCount.get() + 1);
+        }).await();
+        assertEquals(1, userCount.get());
+
+        //  count "felles" group
+        AtomicInteger groupCount = new AtomicInteger();
+        application.get(GroupRepository.class).getAllGroups().forEach(group -> {
+            if (group.getGroupId().equals("felles")) {
+                groupCount.set(groupCount.get() + 1);
+            }
+        }).await();
+        assertEquals(1, groupCount.get());
+
+        //  count specific user's role in db
+        AtomicInteger roleCount = new AtomicInteger();
+        application.get(RoleRepository.class).getRoleList("user.thor").forEach(role -> {
+            roleCount.set(roleCount.get() + 1);
+        }).await();
+        assertEquals(1, roleCount.get());
     }
 
     @Test
@@ -122,24 +262,24 @@ class AccessServiceHttpTest {
 
     @Test
     void thatGetAccessWhenRoleHasNoIncludedOrExcludedPathsWorks() {
-        createUser("john_can_update", null, List.of("group1"));
+        createUser("john_can_update", List.of("updater"), null);
         createRole("updater", List.of(Privilege.UPDATE), null, Valuation.INTERNAL, List.of(DatasetState.RAW, DatasetState.INPUT));
         client.get("/access/john_can_update?privilege=UPDATE&path=/ns/test&valuation=INTERNAL&state=RAW").expect200Ok();
     }
 
     @Test
-    void GetAccessWhenUserDoesntHaveTheAppropriatePathReturns403() {
+    void thatGetAccessWhenUserDoesntHaveTheAppropriatePathReturns403() {
         createUser("john_with_missing_ns", List.of("creator"));
         createRole("creator", List.of(Privilege.CREATE), List.of("/ns/test/a", "/test"), Valuation.OPEN, List.of(DatasetState.OTHER));
         client.get("/access/john_with_missing_ns?privilege=CREATE&path=/ns/test&valuation=OPEN&state=OTHER").expect403Forbidden();
     }
 
     @Test
-    void GetAccessWhenUserIsExcludedFromPathReturns403() {
+    void thatGetAccessWhenUserIsExcludedFromPathReturns403() {
         createUser("john_with_excluded_ns", List.of("creator"));
         createRole("creator", List.of(Privilege.CREATE), null,
-                List.of("/ns/test/", "/test"), List.of("/ns/test/exclude")
-                , Valuation.OPEN, List.of(DatasetState.OTHER), null);
+                List.of("/ns/test/", "/test"), List.of("/ns/test/exclude"),
+                Valuation.OPEN, List.of(DatasetState.OTHER), null);
         client.get("/access/john_with_excluded_ns?privilege=CREATE&path=/ns/test/somedir&valuation=OPEN&state=OTHER").expect200Ok();
         client.get("/access/john_with_excluded_ns?privilege=CREATE&path=/ns/test/exclude/somedir&valuation=OPEN&state=OTHER").expect403Forbidden();
     }
@@ -152,21 +292,21 @@ class AccessServiceHttpTest {
     }
 
     @Test
-    void GetAccessWhenUserHasExcludedPrivilegeReturns403() {
+    void thatGetAccessWhenUserHasExcludedPrivilegeReturns403() {
         createUser("john_with_excluded_priv", List.of("creator"));
         createRole("creator", null, List.of(Privilege.CREATE),
-                List.of("/ns/test", "/test"), null
-                , Valuation.OPEN, List.of(DatasetState.OTHER), null);
+                List.of("/ns/test", "/test"), null,
+                Valuation.OPEN, List.of(DatasetState.OTHER), null);
         client.get("/access/john_with_excluded_priv?privilege=READ&path=/ns/test&valuation=OPEN&state=OTHER").expect200Ok();
         client.get("/access/john_with_excluded_priv?privilege=CREATE&path=/ns/test&valuation=OPEN&state=OTHER").expect403Forbidden();
     }
 
     @Test
-    void GetAccessWhenUserHasExcludedDatasetStateReturns403() {
+    void thatGetAccessWhenUserHasExcludedDatasetStateReturns403() {
         createUser("john_with_excluded_priv", List.of("creator"));
         createRole("creator", List.of(Privilege.CREATE), null,
-                List.of("/ns/test", "/test"), null
-                , Valuation.OPEN, null, List.of(DatasetState.RAW));
+                List.of("/ns/test", "/test"), null,
+                Valuation.OPEN, null, List.of(DatasetState.RAW));
         client.get("/access/john_with_excluded_priv?privilege=CREATE&path=/ns/test&valuation=OPEN&state=INPUT").expect200Ok();
         client.get("/access/john_with_excluded_priv?privilege=CREATE&path=/ns/test&valuation=OPEN&state=RAW").expect403Forbidden();
     }

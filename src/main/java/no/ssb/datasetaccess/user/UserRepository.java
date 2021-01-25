@@ -55,11 +55,11 @@ public class UserRepository {
 
     public Single<Long> createOrUpdateUser(User user) {
         return client.execute(exec -> {
-                    String documentJson = ProtobufJsonUtils.toString(user);
-                    return exec.insert("INSERT INTO user_permission (userId, document) VALUES(?, ?::JSON) ON CONFLICT (userId) DO UPDATE SET document = ?::JSON",
-                            user.getUserId(), documentJson, documentJson)
-                            .peek(usersCreatedOrUpdatedCount::inc);
-                }
+            String documentJson = ProtobufJsonUtils.toString(user);
+            return exec.insert("INSERT INTO user_permission (userId, document) VALUES(?, ?::JSON) ON CONFLICT (userId) DO UPDATE SET document = ?::JSON",
+                    user.getUserId(), documentJson, documentJson)
+                    .peek(usersCreatedOrUpdatedCount::inc);
+            }
         );
     }
 

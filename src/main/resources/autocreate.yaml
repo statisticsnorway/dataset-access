@@ -1,0 +1,37 @@
+###
+# autocreate.yaml
+#
+# A domain contains a user and roles (a list of roleIds)
+# Multiple domains not implemented.
+#
+# domain.user contains 1 userId, and a list of roles and a list of groups
+# domain.roles contains:
+#   1 roleId
+#   1 description
+#   privileges contains includes and excludes, which can be empty, or contain 1 or several of the defined values in a comma-separated list
+#   paths contains includes and excludes, which cannot be removed, but can be empty. includes and excludes contain a list of paths
+#   maxValuation contains 1 of the defined valid values
+#   states is the same as privileges, but has different valid values
+###
+autocreate:
+  - domain: "ssb.no"
+    user:
+      userId: "$user@ssb.no"
+      roles:
+        - "user.$user"
+      groups:
+        - "felles"
+    roles:
+      - roleId: "user.$user"
+        description: "Home folder for user $user@ssb.no"
+        privileges: # Valid values for privileges: READ, CREATE, UPDATE, DELETE
+          includes: [ READ, CREATE ]
+          excludes: []
+        paths:  # Subitems "includes"/"excludes" can be empty, but can not be removed
+          includes:
+            - "/user/$user/"
+          excludes:
+        maxValuation: "SENSITIVE" # Valid values for maxValuation: OPEN, INTERNAL, SHIELDED, SENSITIVE
+        states: # Valid values for states: RAW, INPUT, PROCESSED, OUTPUT, PRODUCT, OTHER, TEMP
+          includes: [ RAW ]
+          excludes: []
