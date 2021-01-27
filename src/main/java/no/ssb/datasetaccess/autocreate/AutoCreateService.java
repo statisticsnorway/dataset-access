@@ -60,12 +60,12 @@ public class AutoCreateService {
     public Single<User> createNewUser(String userId, Span span) {
         if (this.shouldAutoCreate(userId, this.getAutoCreate())) {
             span.log("auto-creating new user");
-            return Single.just(this.create(userId));
+            return Single.just(this.create(userId, span));
         }
         return Single.empty();
     }
 
-    private User create(String userId) {
+    private User create(String userId, Span span) {
         try {
             if ( autoCreate.getItems().stream().findFirst().isPresent() ) {
                 List<AutoCreateItem> items = autoCreate.getItems();
@@ -79,6 +79,7 @@ public class AutoCreateService {
                 roles.forEach(role -> {
                     roleRepository.createOrUpdateRole(role.toRole(userIdPart)).await(1, TimeUnit.SECONDS);
                 });
+                span.log("new user created for "+ userId);
                 return user;
             }
         } catch (RuntimeException | Error e) {
