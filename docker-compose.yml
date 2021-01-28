@@ -11,15 +11,15 @@ services:
     volumes:
       - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
 
-  datasetAccess:
+  userAccess:
     build: .
-    image: dataset-access:dev
+    image: user-access:dev
     ports:
       - 8989:8080
       - 7979:7070
     environment:
       PGPOOL_CONNECT_dash_OPTIONS_HOST: postgres
       PGPOOL_CONNECT_dash_OPTIONS_PORT: 5432
-      FLYWAY_URL: jdbc:postgresql://postgres:5432/dataset_access
+      FLYWAY_URL: jdbc:postgresql://postgres:5432/user_access
     depends_on:
       - postgres
