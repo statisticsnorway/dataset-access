@@ -39,15 +39,15 @@ variables:
   - name: fullSha
     value: '$(Build.SourceVersion)'
   - name: imageName
-    value: 'eu.gcr.io/prod-bip/ssb/dapla/dataset-access'
+    value: 'eu.gcr.io/prod-bip/ssb/dapla/dapla-user-access'
   - name: repoName
-    value: 'prod-bip/ssb/dapla/dataset-access'
+    value: 'prod-bip/ssb/dapla/dapla-user-access'
   - name: 'IntegrationTests.Database.Name'
-    value: 'dataset_access'
+    value: 'user_access'
   - name: 'IntegrationTests.Database.Username'
-    value: 'dataset_access'
+    value: 'user_access'
   - name: 'IntegrationTests.Database.Password'
-    value: 'dataset_access'
+    value: 'user_access'
   - name:  MAVEN_CACHE_FOLDER
     value: $(Pipeline.Workspace)/.m2/repository
   - name: MAVEN_OPTS
@@ -61,7 +61,7 @@ jobs:
       project: dapla
       imageName: $(imageName)
       repoName: $(repoName)
-      artifactName: dataset-access
+      artifactName: dapla-user-access
 
   # Job which pulls the Docker image with the correct tag (image-scan-tag) from GCR, tags this
   # with the git tag, and pushes that back to GCR.

@@ -1,7 +1,7 @@
-import no.ssb.datasetaccess.UserAccessApplicationBuilder;
+import no.ssb.useraccess.UserAccessApplicationBuilder;
 import no.ssb.helidon.application.HelidonApplicationBuilder;
 
-module no.ssb.datasetaccess {
+module no.ssb.useraccess {
     requires org.slf4j;
     requires jul.to.slf4j;
     requires com.fasterxml.jackson.databind;
@@ -42,9 +42,9 @@ module no.ssb.datasetaccess {
 
     opens db.migration; // flyway needs this to read migration files
 
-    exports no.ssb.datasetaccess; // allows running individual integration tests from IntelliJ
-    exports no.ssb.datasetaccess.autocreate.model;
-    exports no.ssb.datasetaccess.token to com.fasterxml.jackson.databind;
+    exports no.ssb.useraccess; // allows running individual integration tests from IntelliJ
+    exports no.ssb.useraccess.autocreate.model;
+    exports no.ssb.useraccess.token to com.fasterxml.jackson.databind;
 
     provides HelidonApplicationBuilder with UserAccessApplicationBuilder;
 }

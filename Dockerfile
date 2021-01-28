@@ -30,4 +30,4 @@ WORKDIR /app
 
 EXPOSE 10100
 
-CMD ["java", "-p", "/app/lib", "-m", "no.ssb.datasetaccess/no.ssb.datasetaccess.UserAccessApplication"]
+CMD ["java", "-p", "/app/lib", "-m", "no.ssb.useraccess/no.ssb.useraccess.UserAccessApplication"]
